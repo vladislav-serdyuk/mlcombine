@@ -1,0 +1,11 @@
+# Built-in block: positional encoding
+blocks:
+  positional_encoding:
+    description: Sinusoidal positional encoding for transformer sequence data
+    params:
+      d_model: 64
+      max_len: 5000
+    layers:
+      - type: positional_encoding
+        d_model: ${d_model}
+        max_len: ${max_len}

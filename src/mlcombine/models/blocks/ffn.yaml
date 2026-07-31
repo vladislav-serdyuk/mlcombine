@@ -1,0 +1,18 @@
+# Built-in block: position-wise feed-forward network (FFN)
+blocks:
+  ffn:
+    description: Linear → activation → Linear (position-wise FFN)
+    params:
+      d_model: 64
+      ff_dim: 256
+      activation: relu
+      dropout: 0.0
+    layers:
+      - type: linear
+        out_features: ${ff_dim}
+        activation: ${activation}
+      - name: drop
+        type: dropout
+        p: ${dropout}
+      - type: linear
+        out_features: ${d_model}

@@ -1,0 +1,18 @@
+# Titanic — простой baseline (sklearn)
+version: "1.0"
+data:
+  train_df: "train.csv"
+  test_df: "test.csv"
+  target_col: "Survived"
+  task_type: classification
+step_config:
+  split:
+    val_fraction: 0.2
+    stratified: true
+model:
+  - provider: "sklearn"
+    params:
+      backbone: "gradient_boosting"
+trainer:
+  output_dir: outputs
+  output_file: outputs/submission.csv

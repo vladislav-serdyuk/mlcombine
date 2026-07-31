@@ -1,0 +1,33 @@
+# Built-in block: transformer encoder
+include:
+  - ./attention.yaml
+  - ./ffn.yaml
+
+blocks:
+  encoder_block:
+    description: Full transformer encoder block — MHA → add/norm → FFN → add/norm
+    params:
+      d_model: 64
+      nhead: 4
+      ff_dim: 256
+      dropout: 0.1
+    layers:
+      - type: block
+        ref: multi_head_attn
+        params:
+          d_model: ${d_model}
+          nhead: ${nhead}
+          dropout: ${dropout}
+      - name: ffn
+        type: block
+        ref: ffn
+        params:
+          d_model: ${d_model}
+          ff_dim: ${ff_dim}
+          dropout: ${dropout}
+      - name: add_ffn
+        type: add
+        inputs: [@input, ffn]
+      - name: norm2
+        type: layer_norm
+        num_features: ${d_model}

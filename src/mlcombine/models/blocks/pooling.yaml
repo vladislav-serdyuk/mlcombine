@@ -1,0 +1,21 @@
+# Built-in block: pooling operations
+blocks:
+  global_avg_pool:
+    description: Global average pooling over sequence dimension (3D → 2D)
+    layers:
+      - type: mean_pool
+
+  global_max_pool:
+    description: Global max pooling over sequence dimension (3D → 2D)
+    layers:
+      - type: max_pool_seq
+
+  take_last:
+    description: Take the last token (3D → 2D)
+    layers:
+      - type: take_last
+
+  take_first:
+    description: Take the first token (3D → 2D)
+    layers:
+      - type: take_first

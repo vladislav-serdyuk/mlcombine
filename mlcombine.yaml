@@ -1,0 +1,34 @@
+version: "1.0"
+environment:
+  auto_install: true
+data:
+  train_df: "https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv"
+  test_df: "https://raw.githubusercontent.com/datasciencedojo/datasets/master/titanic.csv"
+  target_col: "Survived"
+  sep: ","
+force_types:
+  Sex: "category"
+  Embarked: "category"
+handling:
+  numbers:
+    impute: "median"
+    scale: "robust"
+  categories:
+    encode: "target"
+    smoothing: 10.0
+model:
+  - provider: "sklearn"
+    params:
+      backbone: "random_forest"
+evaluator:
+  name: "holdout"
+  params:
+    val_fraction: 0.2
+    stratified: true
+  metrics:
+    - "f1"
+    - "accuracy"
+trainer:
+  output_dir: "./outputs"
+  output_file: "./outputs/model"
+  fallback_on_error: true

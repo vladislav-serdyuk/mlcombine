@@ -1,0 +1,131 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "mlcombine"
+version = "0.1.0"
+description = "Declarative Low-Code/No-Code framework for ML competitions — automate the boring stuff."
+authors = [{name = "Vladislav Serdyuk", email="serdyuk2slava@gmail.com"}]
+license = "Apache-2.0"
+requires-python = ">=3.14"
+dependencies = [
+    "pandas>=2.0.0",
+    "numpy>=1.24.0",
+    "pyyaml>=6.0.0",
+    "pydantic>=2.0.0",
+    "click>=8.0.0",
+    "openpyxl>=3.1.0",
+    "requests>=2.31.0",
+    "scikit-learn>=1.0.0",
+    "tqdm>=4.68.1",
+    "optuna>=4.9.0",
+    "lightgbm>=4.0",
+]
+# Optional dependencies for ML backends (to be installed dynamically)
+[project.optional-dependencies]
+torch = ["torch"]
+timm = ["timm"]
+albumentations = ["albumentations"]
+pycocotools = ["pycocotools"]
+gensim = ["gensim"]
+catboost = [
+    "catboost",
+]
+lightgbm = ["lightgbm"]
+scikit-learn = ["scikit-learn"]
+faiss-cpu = ["faiss-cpu"]
+
+[project.scripts]
+mlcombine = "mlcombine.cli.main:cli"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/mlcombine"]
+
+[tool.mypy]
+ignore_missing_imports = true
+check_untyped_defs = true
+disallow_any_generics = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_return_any = true
+warn_unused_ignores = true
+strict_equality = true
+disallow_subclassing_any = false
+disallow_untyped_defs = false
+disallow_untyped_calls = false
+disallow_untyped_decorators = false
+show_error_codes = true
+
+[tool.ruff]
+line-length = 160
+target-version = "py314"
+
+[tool.ruff.lint]
+ignore = ["E501"]
+
+[dependency-groups]
+dev = [
+    "catboost>=1.2.10",
+    "mypy>=2.1.0",
+    "pandas-stubs>=2.0.0",
+    "pre-commit>=4.0.0",
+    "pyarrow>=25.0.0",
+    "pytest>=8.0.0",
+    "ruff>=0.11.0",
+    "torch>=2.12.0",
+    "types-click>=7.1.8",
+]
+[[tool.mypy.overrides]]
+module = [
+    "numpy.*",
+    "pandas.*",
+    "sklearn.*",
+    "torch.*",
+    "catboost",
+    "lightgbm",
+    "pycocotools.*",
+    "requests.*",
+    "yaml",
+    "click",
+    "pydantic.*",
+]
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+markers = [
+    "optuna: marks tests that require optuna (deselect with '-m \"not optuna\"')",
+]
+
+# pytorch.py and hybrid.py subclass nn.Module inside a try/except ImportError
+# block.  When torch is not installed, ``nn`` is typed as ``Any`` so strict
+# ``disallow_subclassing_any`` would reject those class definitions.
+[[tool.mypy.overrides]]
+module = [
+    "mlcombine.models.providers.pytorch",
+    "mlcombine.models.providers.hybrid",
+]
+disallow_subclassing_any = false
+
+# Tests: relaxed rules for fixtures, untyped test methods, Pydantic **dict
+[[tool.mypy.overrides]]
+module = [
+    "tests",
+    "tests.*",
+]
+disallow_untyped_defs = false
+disallow_untyped_calls = false
+disallow_any_generics = false
+warn_return_any = false
+check_untyped_defs = false
+disable_error_code = [
+    "arg-type",       # Pydantic **dict → model params
+    "union-attr",     # DataFrame | None indexing
+    "var-annotated",  # bare `t = UnifiedTensor(...)`
+    "no-untyped-def", # fixture/test methods without -> None
+]

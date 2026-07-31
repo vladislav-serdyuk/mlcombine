@@ -1,0 +1,40 @@
+# PyTorch с кастомной архитектурой (MLP + BatchNorm + Dropout)
+version: "1.0"
+data:
+  train_df: "train.csv"
+  test_df: "test.csv"
+  target_col: "target"
+  task_type: classification
+model:
+  - provider: "pytorch"
+    params:
+      objective: "F1"
+      epochs: 30
+      batch_size: 64
+      lr: 0.001
+      layers:
+        - type: "linear"
+          out_features: 512
+        - type: "batch_norm1d"
+        - type: "relu"
+        - type: "dropout"
+          p: 0.3
+        - type: "linear"
+          out_features: 256
+        - type: "batch_norm1d"
+        - type: "relu"
+        - type: "dropout"
+          p: 0.2
+        - type: "linear"
+          out_features: 128
+        - type: "relu"
+        - type: "linear"
+handling:
+  numbers:
+    impute: median
+    scale: robust
+  categories:
+    encode: ordinal
+trainer:
+  output_dir: outputs
+  output_file: outputs/submission.csv

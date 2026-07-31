@@ -1,0 +1,20 @@
+# Built-in block: multi-head self-attention with residual + layer norm
+blocks:
+  multi_head_attn:
+    description: Multi-head self-attention → residual add → layer norm
+    params:
+      d_model: 64
+      nhead: 4
+      dropout: 0.1
+    layers:
+      - name: mha
+        type: multihead_attention
+        embed_dim: ${d_model}
+        num_heads: ${nhead}
+        dropout: ${dropout}
+      - name: add
+        type: add
+        inputs: [@input, mha]
+      - name: norm
+        type: layer_norm
+        num_features: ${d_model}backend

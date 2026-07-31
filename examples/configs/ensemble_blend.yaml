@@ -1,0 +1,25 @@
+# Ensemble: CatBoost + LightGBM с взвешенным усреднением
+version: "1.0"
+data:
+  train_df: "train.csv"
+  test_df: "test.csv"
+  target_col: "target"
+  task_type: classification
+model:
+  - id: "cb"
+    provider: "catboost"
+    params:
+      iterations: 3000
+      depth: 8
+  - id: "lgb"
+    provider: "lightgbm"
+    params:
+      num_iterations: 3000
+      max_depth: 8
+  - provider: "ensemble"
+    models: ["cb", "lgb"]
+    params:
+      weights: [0.6, 0.4]
+trainer:
+  output_dir: outputs
+  output_file: outputs/submission.csv
