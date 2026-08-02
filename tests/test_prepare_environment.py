@@ -1,5 +1,8 @@
 """Tests for PrepareEnvironmentStep — unit tests with mocks."""
 
+import subprocess
+import sys
+import textwrap
 from unittest.mock import MagicMock, patch
 
 from mlcombine.core.types import MLCombineConfig, PipelineContext
@@ -40,6 +43,49 @@ class TestPrepareEnvironmentStep:
         ctx = PipelineContext()
         result = step.run(ctx)
         assert result is ctx
+
+    def test_import_works_without_heavy_backends(self):
+        """The whole package must import cleanly without catboost/lightgbm/torch
+        so that PrepareEnvironmentStep gets a chance to install them."""
+        code = textwrap.dedent(
+            """
+            import sys
+
+            class _Block:
+                def find_spec(self, name, path=None, target=None):
+                    if (
+                        name in ("catboost", "lightgbm", "torch")
+                        or name.startswith("catboost.")
+                        or name.startswith("lightgbm.")
+                        or name.startswith("torch.")
+                    ):
+                        raise ModuleNotFoundError(f"No module named '{name}'", name=name)
+                    return None
+
+            sys.meta_path.insert(0, _Block())
+            import mlcombine
+            import mlcombine.models.providers
+            from mlcombine.models.providers.catboost import catboost_provider
+            from mlcombine.models.providers.lightgbm import lightgbm_provider
+            try:
+                catboost_provider()
+            except ImportError:
+                pass
+            try:
+                lightgbm_provider()
+            except ImportError:
+                pass
+            print("IMPORT_OK")
+            """
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "IMPORT_OK" in result.stdout
 
     @patch("mlcombine.steps.prepare_environment.importlib.import_module", side_effect=[ImportError("missing"), MagicMock()])
     @patch("mlcombine.steps.prepare_environment.shutil.which", return_value="/usr/bin/uv")

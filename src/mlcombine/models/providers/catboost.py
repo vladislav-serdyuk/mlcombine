@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import logging
-from typing import Any, Self
+from typing import TYPE_CHECKING, Any, Self
 
 import numpy as np
 from numpy.typing import NDArray
@@ -14,7 +14,15 @@ from mlcombine.core.enums import ModelObjective, TaskType
 from mlcombine.core.registry import registry
 from mlcombine.core.protocols import SupportedModel
 
-from catboost import CatBoostClassifier, CatBoostRegressor
+if TYPE_CHECKING:
+    from catboost import CatBoostClassifier, CatBoostRegressor
+
+try:
+    from catboost import CatBoostClassifier, CatBoostRegressor
+
+    _CATBOOST_AVAILABLE = True
+except ImportError:
+    _CATBOOST_AVAILABLE = False
 
 
 class CatBoostLoggingCallback:
@@ -217,6 +225,9 @@ def catboost_provider(
     per-iteration metrics through Python logging. Override with
     ``params={"verbose": True, "callbacks": [...]}`` for native output.
     """
+    if not _CATBOOST_AVAILABLE:
+        logger.error("CatBoost is not installed. Install with: uv add catboost")
+        raise ImportError("CatBoost is required for catboost provider")
     try:
         use_gpu: bool = bool(params.pop("gpu", False))
         if use_gpu:
