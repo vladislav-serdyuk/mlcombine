@@ -461,6 +461,149 @@ step_config:
     cache_dir: "./cache/embeddings"
 ```
 
+#### `save_predictions`
+
+Формат файла с предиктами. `id_col` задаёт колонку с id строк в сабмишене.
+
+```yaml
+step_config:
+  save_predictions:
+    id_col: "id"              # колонка-ид строк предикта (default: нет)
+    target_col: "prediction"  # название колонки с предиктами
+    sep: ","                  # разделитель CSV (auto: "," / "\t" для .tsv)
+```
+
+| Поле | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `id_col` | `str \| None` | `None` | Колонка для id; без неё используется индекс |
+| `target_col` | `str` | `"prediction"` | Название колонки с предиктами |
+| `sep` | `str \| None` | `None` | Разделитель (`","` или `"\t"` для `.tsv`) |
+
+#### `evaluate`
+
+Метрики на holdout-сплите (или OOF для мета-провайдеров).
+
+```yaml
+step_config:
+  evaluate:
+    metrics: ["f1", "accuracy"]
+```
+
+| Поле | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `metrics` | `list[str] \| None` | `None` | Подмножество `f1`, `f1_macro`, `accuracy`, `rmse`, `auc`, `logloss`, `mae`, `mape`; `None` = все применимые |
+
+#### `feature_generation`
+
+Count / frequency-кодирование категориальных колонок с высокой кардинальностью.
+
+```yaml
+step_config:
+  feature_generation:
+    count_encode: true
+    freq_encode: true
+    max_unique: 1000
+```
+
+| Поле | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `count_encode` | `bool` | `true` | Добавлять count-кодированные колонки |
+| `freq_encode` | `bool` | `true` | Добавлять frequency-кодированные колонки |
+| `max_unique` | `int` | `1000` | Кодировать колонки не более чем с этим числом уникальных значений |
+
+#### `column_length`
+
+Добавляет колонки `{col}_len` с длиной строк.
+
+```yaml
+step_config:
+  column_length:
+    columns: ["title", "description"]
+```
+
+| Поле | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `columns` | `list[str]` | `[]` | Колонки для вычисления длины |
+
+#### `diff_ratio`
+
+Добавляет колонки `{a}_{b}_diff_ratio` — `(a - b) / max(|a|, |b|)` для каждой пары.
+
+```yaml
+step_config:
+  diff_ratio:
+    pairs: [["price_a", "price_b"]]
+```
+
+| Поле | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `pairs` | `list[list[str]]` | `[]` | Пары числовых колонок |
+
+#### `same_value`
+
+Добавляет флаги `{a}_{b}_same` — 1, когда обе колонки равны.
+
+```yaml
+step_config:
+  same_value:
+    pairs: [["cat_a", "cat_b"]]
+    drop_source: false
+```
+
+| Поле | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `pairs` | `list[list[str]]` | `[]` | Пары колонок для сравнения |
+| `drop_source` | `bool` | `false` | Удалять исходные колонки после сравнения |
+
+#### `text_overlap`
+
+Фичи пересечения для пар текстовых колонок (char n-grams / token overlap).
+
+```yaml
+step_config:
+  text_overlap:
+    pairs: [["title_a", "title_b"]]
+    char_ngram: 3
+    drop_source: false
+```
+
+| Поле | Тип | По умолчанию | Описание |
+|---|---|---|---|
+| `pairs` | `list[list[str]]` | `[]` | Пары текстовых колонок |
+| `char_ngram` | `int` | `0` | Размер char n-gram для overlap (`0` = только токены) |
+| `token_pattern` | `str` | `\w+` | Регэксп для токенизации |
+| `drop_source` | `bool` | `false` | Удалять исходные колонки после подсчёта |
+
+#### `reference_join`
+
+Объединение данных с reference-таблицами (например, метаданные товаров),
+опционально фильтруя тренировочные метки.
+
+```yaml
+step_config:
+  reference_join:
+    joins:
+      - reference_path: "items.parquet"
+        left_on: "leftItemId"
+        suffix: "_left"
+    keep_labels: ["no_relevant", "relevant"]
+```
+
+| Поле | Тип | Описание |
+|---|---|---|
+| `joins` | `list[dict]` | Конфиги join'ов: `reference_path`, `left_on`, `suffix` |
+| `keep_labels` | `list[str] \| None` | Если задано — строки трейна с другими метками удаляются |
+
+Сокращённая запись (один join, без `keep_labels`):
+
+```yaml
+step_config:
+  reference_join:
+    reference_path: "items.parquet"
+    left_on: "leftItemId"
+    suffix: "_left"
+```
+
 ---
 
 ### `trainer`

@@ -461,6 +461,150 @@ step_config:
     cache_dir: "./cache/embeddings"
 ```
 
+#### `save_predictions`
+
+Prediction output file format. `id_col` controls which column is used as
+the row id in the submission.
+
+```yaml
+step_config:
+  save_predictions:
+    id_col: "id"          # column used as prediction row id (default: none)
+    target_col: "prediction"  # name of the prediction column
+    sep: ","              # CSV separator (auto: "," / "\t" for .tsv)
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `id_col` | `str \| None` | `None` | Column to use as id; when unset, index is used |
+| `target_col` | `str` | `"prediction"` | Name of the prediction column |
+| `sep` | `str \| None` | `None` | Separator (`","` or `"\t"` for `.tsv`) |
+
+#### `evaluate`
+
+Metrics on the holdout split (or OOF for meta-providers).
+
+```yaml
+step_config:
+  evaluate:
+    metrics: ["f1", "accuracy"]
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `metrics` | `list[str] \| None` | `None` | Subset of `f1`, `f1_macro`, `accuracy`, `rmse`, `auc`, `logloss`, `mae`, `mape`; `None` = all applicable |
+
+#### `feature_generation`
+
+Count / frequency encoding for high-cardinality categorical columns.
+
+```yaml
+step_config:
+  feature_generation:
+    count_encode: true
+    freq_encode: true
+    max_unique: 1000
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `count_encode` | `bool` | `true` | Add count-encoded columns |
+| `freq_encode` | `bool` | `true` | Add frequency-encoded columns |
+| `max_unique` | `int` | `1000` | Only encode columns with ≤ this many unique values |
+
+#### `column_length`
+
+Adds `{col}_len` columns with string lengths.
+
+```yaml
+step_config:
+  column_length:
+    columns: ["title", "description"]
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `columns` | `list[str]` | `[]` | Columns to compute lengths for |
+
+#### `diff_ratio`
+
+Adds `{a}_{b}_diff_ratio` columns — `(a - b) / max(|a|, |b|)` per pair.
+
+```yaml
+step_config:
+  diff_ratio:
+    pairs: [["price_a", "price_b"]]
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `pairs` | `list[list[str]]` | `[]` | Numeric column pairs |
+
+#### `same_value`
+
+Adds `{a}_{b}_same` flags — 1 when both columns are equal.
+
+```yaml
+step_config:
+  same_value:
+    pairs: [["cat_a", "cat_b"]]
+    drop_source: false
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `pairs` | `list[list[str]]` | `[]` | Column pairs to compare |
+| `drop_source` | `bool` | `false` | Drop source columns after comparison |
+
+#### `text_overlap`
+
+Overlap features between text column pairs (char n-grams / token overlap).
+
+```yaml
+step_config:
+  text_overlap:
+    pairs: [["title_a", "title_b"]]
+    char_ngram: 3
+    drop_source: false
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `pairs` | `list[list[str]]` | `[]` | Text column pairs |
+| `char_ngram` | `int` | `0` | Character n-gram size for overlap (`0` = tokens only) |
+| `token_pattern` | `str` | `\w+` | Regex for tokenization |
+| `drop_source` | `bool` | `false` | Drop source columns after scoring |
+
+#### `reference_join`
+
+Merge pair data against reference tables (e.g. item metadata), optionally
+filtering training labels.
+
+```yaml
+step_config:
+  reference_join:
+    joins:
+      - reference_path: "items.parquet"
+        left_on: "leftItemId"
+        suffix: "_left"
+    keep_labels: ["no_relevant", "relevant"]
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `joins` | `list[dict]` | Join configs: `reference_path`, `left_on`, `suffix` |
+| `keep_labels` | `list[str] \| None` | When set, train rows with other labels are dropped |
+
+Shorthand (single join, no `keep_labels`):
+
+```yaml
+step_config:
+  reference_join:
+    reference_path: "items.parquet"
+    left_on: "leftItemId"
+    suffix: "_left"
+```
+
 ---
 
 ### `trainer`
