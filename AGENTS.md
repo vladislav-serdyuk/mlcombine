@@ -94,6 +94,11 @@ model:
 - GPU-режим CatBoost: достаточно добавить `gpu: true` в `params` или
   `target_params`. Провайдер вызовет `params.pop("gpu")` и установит
   `task_type="GPU"` в конструкторе CatBoost.
+- CatBoost `objective` в `params` может быть строкой (напр. `"MAE"`) — она
+  задаёт `loss_function` и `eval_metric` (если не заданы явно). Строкой
+  считается только raw str (`type(x) is str`), StrEnum — это метаинформация
+  для дефолтных eval_metric. Regression: RMSE/MAE/MAPE/Huber/Quantile;
+  classification: Logloss/CrossEntropy/MultiClass (валидные для n_classes).
 - NaN в text колонках: CatBoost сам работает с NaN в text features.
   На predict `_ensure_text_as_str` / `_cast_text_features_as_str` чинят
   позиционные text feature индексы. `_predict_with_text_fallback` —

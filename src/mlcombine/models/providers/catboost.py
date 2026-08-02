@@ -207,11 +207,25 @@ class CatBoostWrapper:
 logger = logging.getLogger(__name__)
 
 
+_REGRESSION_LOSSES = frozenset({"RMSE", "MAE", "MAPE", "HUBER", "QUANTILE"})
+_CLASSIFICATION_LOSSES = frozenset({"LOGLOSS", "CROSSENTROPY", "MULTICLASS"})
+_LOSS_ALIASES = {
+    "RMSE": "RMSE",
+    "MAE": "MAE",
+    "MAPE": "MAPE",
+    "HUBER": "Huber",
+    "QUANTILE": "Quantile",
+    "LOGLOSS": "Logloss",
+    "CROSSENTROPY": "CrossEntropy",
+    "MULTICLASS": "MultiClass",
+}
+
+
 @registry.model_provider("catboost", package="catboost", module="mlcombine.models.providers.catboost")
 def catboost_provider(
     backbone: str = "gradient_boosting",
     task_type: TaskType = TaskType.REGRESSION,
-    objective: ModelObjective = ModelObjective.RMSE,
+    objective: ModelObjective | str = ModelObjective.RMSE,
     num_classes: int | None = None,
     input_size: int | None = None,
     **params: Any,
@@ -224,6 +238,11 @@ def catboost_provider(
     By default ``verbose=False`` and a logging callback is added to route
     per-iteration metrics through Python logging. Override with
     ``params={"verbose": True, "callbacks": [...]}`` for native output.
+
+    ``objective`` may also be a raw string (e.g. ``"MAE"``) — it is then
+    used as ``loss_function`` and (unless set explicitly in params)
+    ``eval_metric``. Supported: RMSE, MAE, MAPE, HUBER, QUANTILE for
+    regression; Logloss, CrossEntropy, MultiClass for classification.
     """
     if not _CATBOOST_AVAILABLE:
         logger.error("CatBoost is not installed. Install with: uv add catboost")
@@ -236,25 +255,40 @@ def catboost_provider(
         # Disable native verbose output; our callback handles logging
         params.setdefault("verbose", False)
 
+        objective_str: str | None = None
+        if type(objective) is str:  # raw string (not StrEnum) — e.g. "MAE"
+            objective_str = objective.upper()
+        if objective_str is not None and objective_str not in _REGRESSION_LOSSES | _CLASSIFICATION_LOSSES:
+            logger.warning("Unsupported objective %r — ignoring", objective_str)
+            objective_str = None
+
         if task_type in (TaskType.CLASSIFICATION, TaskType.MULTITASK):
             n_classes = num_classes or 2
+            is_multi = n_classes > 2
+            if objective_str == "MULTICLASS" and is_multi:
+                loss_fn = "MultiClass"
+            elif objective_str in {"LOGLOSS", "CROSSENTROPY"} and not is_multi:
+                loss_fn = _LOSS_ALIASES[objective_str]
+            else:
+                loss_fn = "MultiClass" if is_multi else "Logloss"
             if "eval_metric" not in params:
                 params["eval_metric"] = "F1" if objective == ModelObjective.F1 else "Accuracy"
             model = CatBoostClassifier(
-                loss_function="MultiClass" if n_classes > 2 else "Logloss",
+                loss_function=loss_fn,
                 thread_count=-1,
                 **params,
             )
-            logger.info("Created CatBoost: task_type=%s, loss=%s, gpu=%s", task_type, "MultiClass" if n_classes > 2 else "Logloss", use_gpu)
+            logger.info("Created CatBoost: task_type=%s, loss=%s, gpu=%s", task_type, loss_fn, use_gpu)
             return CatBoostWrapper(model)
+        loss_fn = _LOSS_ALIASES[objective_str] if objective_str in _REGRESSION_LOSSES else "RMSE"
         if "eval_metric" not in params:
-            params["eval_metric"] = "MAPE" if objective == ModelObjective.MAPE else "RMSE"
+            params["eval_metric"] = loss_fn if objective_str in _REGRESSION_LOSSES else ("MAPE" if objective == ModelObjective.MAPE else "RMSE")
         model = CatBoostRegressor(
-            loss_function="RMSE",
+            loss_function=loss_fn,
             thread_count=-1,
             **params,
         )
-        logger.info("Created CatBoost: task_type=%s, loss=%s, gpu=%s", task_type, "RMSE", use_gpu)
+        logger.info("Created CatBoost: task_type=%s, loss=%s, gpu=%s", task_type, loss_fn, use_gpu)
         return CatBoostWrapper(model)
     except ImportError:
         logger.error("CatBoost is not installed. Install with: uv add catboost")
