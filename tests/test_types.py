@@ -86,7 +86,7 @@ class TestPipelineArtifacts:
     def test_defaults(self):
         a = PipelineArtifacts()
         assert a.model is None
-        assert a.imputer is None
+        assert a.imputers == {}
 
 
 class TestPipelineContext:

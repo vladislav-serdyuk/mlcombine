@@ -92,19 +92,19 @@ class LoadArtifactsStep(BaseStep[PipelineContext]):
 
         import joblib
 
-        imputer_path = artifacts_dir / "imputer.joblib"
-        if imputer_path.exists():
-            context.artifacts.imputer = joblib.load(imputer_path)
-            logger.info("Imputer loaded")
+        imputers_path = artifacts_dir / "imputers.joblib"
+        if imputers_path.exists():
+            context.artifacts.imputers = joblib.load(imputers_path)
+            logger.info("Imputers loaded: %d columns", len(context.artifacts.imputers))
 
         encoders_path = artifacts_dir / "encoders.joblib"
         if encoders_path.exists():
             context.artifacts.encoders = joblib.load(encoders_path)
             logger.info("Encoders loaded: %d columns", len(context.artifacts.encoders))
 
-        scaler_path = artifacts_dir / "scaler.joblib"
-        if scaler_path.exists():
-            context.artifacts.scaler = joblib.load(scaler_path)
-            logger.info("Scaler loaded")
+        scalers_path = artifacts_dir / "scalers.joblib"
+        if scalers_path.exists():
+            context.artifacts.scalers = joblib.load(scalers_path)
+            logger.info("Scalers loaded: %d columns", len(context.artifacts.scalers))
 
         return context

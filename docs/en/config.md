@@ -46,7 +46,7 @@ handling:
     impute: "median"
     scale: "robust"
   categories:
-    encode: "ordinal"
+    encode: "onehot"
     smoothing: 10.0
 trainer:
   output_dir: "./outputs"
@@ -339,8 +339,31 @@ Preprocessing: imputation, encoding, scaling.
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `encode` | `str` | `"ordinal"` | Encoding: `ordinal`, `onehot`, `target`, `none` |
+| `encode` | `str` | `"onehot"` | Encoding: `ordinal`, `onehot`, `target`, `none` |
 | `smoothing` | `float` | `10.0` | Smoothing for target encoding |
+
+#### `columns`
+
+Per-column overrides — unset fields inherit the global strategies above.
+`none` skips the column entirely (no imputation/encoding/scaling).
+
+| Field | Type | Description |
+|---|---|---|
+| `encode` | `str` | Encoding override for this column: `ordinal`, `onehot`, `none` |
+| `impute` | `str` | Imputation override: `mean`, `median`, `most_frequent`, `constant`, `none` |
+| `scale` | `str` | Scaling override: `standard`, `robust`, `minmax`, `none` |
+| `fill_value` | `float` | Fill value for `impute: "constant"` |
+
+```yaml
+handling:
+  numbers: { impute: "median", scale: "robust" }
+  categories: { encode: "onehot" }
+  columns:
+    cat1: { encode: "ordinal" }       # one column as ordinal, rest one-hot
+    cat2: { encode: "none" }          # keep raw (CatBoost handles it itself)
+    num1: { scale: "none" }           # no scaling for this column
+    num2: { impute: "constant", fill_value: 0 }
+```
 
 #### `sequence_token`
 

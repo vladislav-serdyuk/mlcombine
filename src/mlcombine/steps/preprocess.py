@@ -48,17 +48,19 @@ class ImputeStep(BaseStep[PipelineContext]):
 
     def __init__(self, cfg: MLCombineConfig, *, predict: bool = False, weights: str | None = None) -> None:
         self.impute_strategy = cfg.handling.numbers.impute
-        self.fill_value = None
+        self.column_handling = cfg.handling.columns
         self.target_col = cfg.data.target_col if isinstance(cfg.data.target_col, str) else None
         self.treatment_col = cfg.data.treatment_col
         self._drop_columns: list[str] = cfg.data.drop_columns or []
         self.input_features_: list[str] = []
-        self.imputer_: SimpleImputer | None = None
+        self.imputers_: dict[str, SimpleImputer] = {}
         self._predict_mode = predict
 
     @classmethod
     def is_required(cls, cfg: MLCombineConfig) -> bool:
-        return cfg.handling.numbers.impute != ImputeStrategy.NONE
+        if cfg.handling.numbers.impute != ImputeStrategy.NONE:
+            return True
+        return any(col.impute is not None for col in cfg.handling.columns.values())
 
     def _fit(self, x: pd.DataFrame, detected_types: FeatureMap | None = None) -> None:
         """Fit imputer on numeric columns declared via detected_types.
@@ -69,7 +71,7 @@ class ImputeStep(BaseStep[PipelineContext]):
                 FeatureType.NUMBER are selected for imputation.
 
         Side Effects:
-            - Sets ``self.input_features_`` and ``self.imputer_``.
+            - Sets ``self.input_features_`` and ``self.imputers_``.
 
         """
         if detected_types:
@@ -83,9 +85,18 @@ class ImputeStep(BaseStep[PipelineContext]):
             self.input_features_.remove(self.target_col)
         if self._drop_columns:
             self.input_features_ = [c for c in self.input_features_ if c not in self._drop_columns]
-        if self.input_features_:
-            self.imputer_ = SimpleImputer(strategy=self.impute_strategy.value, fill_value=self.fill_value)
-            self.imputer_.fit(x[self.input_features_])
+        for col in self.input_features_:
+            override = self.column_handling.get(col)
+            strategy = override.impute if override is not None and override.impute is not None else self.impute_strategy
+            if strategy == ImputeStrategy.NONE:
+                continue
+            fill_value = None
+            if strategy == ImputeStrategy.CONSTANT and override is not None:
+                fill_value = override.fill_value
+            imputer = SimpleImputer(strategy=strategy.value, fill_value=fill_value)
+            imputer.fit(x[[col]])
+            self.imputers_[col] = imputer
+        self.input_features_ = list(self.imputers_.keys())
 
     def _transform_features(self, x: pd.DataFrame) -> pd.DataFrame:
         """Apply fitted imputation, restoring original index on output.
@@ -100,18 +111,15 @@ class ImputeStep(BaseStep[PipelineContext]):
             ConfigurationError: If columns seen at fit are missing.
 
         """
-        if not self.input_features_ or self.imputer_ is None:
+        if not self.input_features_ or not self.imputers_:
             return x
         missing = [c for c in self.input_features_ if c not in x.columns]
         if missing:
             raise ConfigurationError(f"Columns seen at fit time are missing in transform: {missing}")
         X_copy = x.copy()
-        imputed = pd.DataFrame(
-            self.imputer_.transform(x[self.input_features_]),
-            columns=self.input_features_,
-            index=x.index,
-        )
-        X_copy[self.input_features_] = imputed
+        for col, imputer in self.imputers_.items():
+            imputed = pd.Series(imputer.transform(x[[col]]).flatten(), index=x.index)
+            X_copy[col] = imputed
         return X_copy
 
     def run(self, context: PipelineContext) -> PipelineContext:
@@ -119,17 +127,17 @@ class ImputeStep(BaseStep[PipelineContext]):
         detected = context.data.detected_types
 
         if self._predict_mode:
-            if context.artifacts.imputer is not None:
-                self.imputer_ = context.artifacts.imputer
-                self.input_features_ = context.artifacts.imputer_features or []
-            if self.imputer_ is None or not self.input_features_:
-                logger.warning("No imputer in artifacts — skipping imputation")
+            if context.artifacts.imputers:
+                self.imputers_ = context.artifacts.imputers
+                self.input_features_ = list(context.artifacts.imputers.keys())
+            if not self.imputers_:
+                logger.warning("No imputers in artifacts — skipping imputation")
                 return context
 
         if context.data.train_df is not None:
             if not self._predict_mode:
                 self._fit(context.data.train_df, detected)
-                context.artifacts.imputer = self.imputer_
+                context.artifacts.imputers = self.imputers_
                 context.artifacts.imputer_features = self.input_features_
                 logger.info("Imputed %d numeric columns (strategy=%s)", len(self.input_features_), self.impute_strategy.value)
             context.data.train_df = self._transform_features(context.data.train_df)
@@ -165,12 +173,13 @@ class EncodeScaleStep(BaseStep[PipelineContext]):
         self.encode_strategy = cfg.handling.categories.encode
         self.scale_strategy = cfg.handling.numbers.scale
         self.smoothing = cfg.handling.categories.smoothing
+        self.column_handling = cfg.handling.columns
         self.target_col = cfg.data.target_col if isinstance(cfg.data.target_col, str) else None
         self.treatment_col = cfg.data.treatment_col
         self._drop_columns: list[str] = cfg.data.drop_columns or []
 
         self.encoders_: dict[str, OrdinalEncoder | OneHotEncoder] = {}
-        self.scaler_: StandardScaler | RobustScaler | MinMaxScaler | None = None
+        self.scalers_: dict[str, StandardScaler | RobustScaler | MinMaxScaler] = {}
         self.input_categorical_cols_: list[str] = []
         self.input_numeric_cols_: list[str] = []
         self._text_cols: list[str] = []
@@ -190,6 +199,8 @@ class EncodeScaleStep(BaseStep[PipelineContext]):
         """
         self.input_categorical_cols_ = X.select_dtypes(include=["object", "category", "str"]).columns.tolist()
         self.input_numeric_cols_ = X.select_dtypes(include=[np.number]).columns.tolist()
+        if self.target_col and self.target_col in self.input_numeric_cols_:
+            self.input_numeric_cols_.remove(self.target_col)
         if self.treatment_col:
             if self.treatment_col in self.input_categorical_cols_:
                 self.input_categorical_cols_.remove(self.treatment_col)
@@ -213,26 +224,46 @@ class EncodeScaleStep(BaseStep[PipelineContext]):
 
         if self.encode_strategy == EncodeStrategy.NONE:
             self.input_categorical_cols_ = []
-        else:
-            for col in self.input_categorical_cols_:
-                if self.encode_strategy == EncodeStrategy.ONEHOT:
-                    encoder: OrdinalEncoder | OneHotEncoder = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
-                    encoder.fit(X[[col]].astype(object).fillna("__NaN__"))
-                else:
-                    encoder = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
-                    encoder.fit(X[[col]])
-                self.encoders_[col] = encoder
+        for col in self.input_categorical_cols_:
+            override = self.column_handling.get(col)
+            strategy = override.encode if override is not None and override.encode is not None else self.encode_strategy
+            if strategy == EncodeStrategy.NONE:
+                continue
+            if strategy == EncodeStrategy.TARGET:
+                raise NotImplementedError(
+                    "EncodeStrategy.TARGET requires cross-validation for OOF isolation. "
+                    "Use the 'fold_ensemble' meta-provider with target_encode_cols instead:\n\n"
+                    "  model:\n"
+                    "    - provider: 'fold_ensemble'\n"
+                    "      model: 'base'\n"
+                    "      params:\n"
+                    "        target_encode_cols: ['cat_col']\n"
+                    "        n_folds: 5\n"
+                )
+            if strategy == EncodeStrategy.ONEHOT:
+                encoder: OrdinalEncoder | OneHotEncoder = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+                encoder.fit(X[[col]].astype(object).fillna("__NaN__"))
+            else:
+                encoder = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
+                encoder.fit(X[[col]])
+            self.encoders_[col] = encoder
 
-        if self.scale_strategy != ScaleStrategy.NONE and self.input_numeric_cols_:
+        for col in self.input_numeric_cols_:
+            override = self.column_handling.get(col)
+            scale_strategy = override.scale if override is not None and override.scale is not None else self.scale_strategy
+            if scale_strategy == ScaleStrategy.NONE:
+                continue
             scaler_map: dict[ScaleStrategy, type[StandardScaler | RobustScaler | MinMaxScaler]] = {
                 ScaleStrategy.STANDARD: StandardScaler,
                 ScaleStrategy.ROBUST: RobustScaler,
                 ScaleStrategy.MINMAX: MinMaxScaler,
             }
-            scaler_cls = scaler_map.get(self.scale_strategy)
+            scaler_cls = scaler_map.get(scale_strategy)
             if scaler_cls is not None:
-                self.scaler_ = scaler_cls()
-                self.scaler_.fit(X[self.input_numeric_cols_])
+                scaler = scaler_cls()
+                scaler.fit(X[[col]])
+                self.scalers_[col] = scaler
+        self.input_numeric_cols_ = list(self.scalers_.keys())
 
     def _transform_features(self, X: pd.DataFrame) -> pd.DataFrame:
         """Apply fitted encoders and scaler, preserving original index.
@@ -264,16 +295,11 @@ class EncodeScaleStep(BaseStep[PipelineContext]):
                 encoded = enc.transform(X_copy[[col]])
                 X_copy[col] = pd.Series(encoded.flatten(), index=X.index)
 
-        if self.scaler_ is not None and self.input_numeric_cols_:
-            missing = [c for c in self.input_numeric_cols_ if c not in X_copy.columns]
-            if missing:
-                raise ConfigurationError(f"Numeric columns from fit missing in transform: {missing}")
-            scaled = pd.DataFrame(
-                self.scaler_.transform(X_copy[self.input_numeric_cols_]),
-                columns=self.input_numeric_cols_,
-                index=X.index,
-            )
-            X_copy[self.input_numeric_cols_] = scaled
+        for col, scaler in self.scalers_.items():
+            if col not in X_copy.columns:
+                raise ConfigurationError(f"Numeric columns from fit missing in transform: {col}")
+            scaled = pd.Series(scaler.transform(X_copy[[col]]).flatten(), index=X.index)
+            X_copy[col] = scaled
 
         for col in self._text_cols:
             if col in X_copy.columns:
@@ -288,14 +314,14 @@ class EncodeScaleStep(BaseStep[PipelineContext]):
             if context.artifacts.encoders:
                 self.encoders_ = context.artifacts.encoders
                 self.input_categorical_cols_ = list(context.artifacts.encoders.keys())
-            if context.artifacts.scaler is not None:
-                self.scaler_ = context.artifacts.scaler
-                self.input_numeric_cols_ = context.artifacts.scaler_features or []
+            if context.artifacts.scalers:
+                self.scalers_ = context.artifacts.scalers
+                self.input_numeric_cols_ = list(context.artifacts.scalers.keys())
 
             needs_encoders = self.encode_strategy not in (None, EncodeStrategy.NONE)
             needs_scaler = self.scale_strategy not in (None, ScaleStrategy.NONE)
             if needs_encoders or needs_scaler:
-                if not self.encoders_ and self.scaler_ is None:
+                if not self.encoders_ and not self.scalers_:
                     raise RuntimeError("EncodeScaleStep: encoders/scaler not found in artifacts — retrain with encode/scale enabled or set handling to 'none'")
 
         if context.data.train_df is not None:
@@ -303,7 +329,7 @@ class EncodeScaleStep(BaseStep[PipelineContext]):
                 y = self._extract_target(context.data.train_df)
                 self._fit(context.data.train_df, y)
                 context.artifacts.encoders = self.encoders_
-                context.artifacts.scaler = self.scaler_
+                context.artifacts.scalers = self.scalers_
                 context.artifacts.scaler_features = self.input_numeric_cols_
                 n_cat = len(self.input_categorical_cols_)
                 n_num = len(self.input_numeric_cols_)

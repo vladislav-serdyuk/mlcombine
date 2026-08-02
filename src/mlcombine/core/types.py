@@ -86,16 +86,16 @@ class PipelineData(BaseModel):
 
 
 class PipelineArtifacts(BaseModel):
-    """Artifacts (model, imputer, encoders, scaler) produced during pipeline execution."""
+    """Artifacts (model, imputers, encoders, scaler) produced during pipeline execution."""
 
     model_config = ConfigDict(extra="forbid", arbitrary_types_allowed=True)
 
     model: _Model = None
     models: dict[str, object] = Field(default_factory=dict)
-    imputer: object | None = None
+    imputers: dict[str, object] = Field(default_factory=dict)
     imputer_features: list[str] | None = None
     encoders: dict[str, object] = Field(default_factory=dict)
-    scaler: object | None = None
+    scalers: dict[str, object] = Field(default_factory=dict)
     scaler_features: list[str] | None = None
     feature_names: list[str] | None = None
     target_mapping: dict[object, object] | None = None

@@ -46,7 +46,7 @@ handling:
     impute: "median"
     scale: "robust"
   categories:
-    encode: "ordinal"
+    encode: "onehot"
     smoothing: 10.0
 trainer:
   output_dir: "./outputs"
@@ -339,8 +339,31 @@ model:
 
 | Поле | Тип | По умолчанию | Описание |
 |---|---|---|---|
-| `encode` | `str` | `"ordinal"` | Кодирование: `ordinal`, `onehot`, `target`, `none` |
+| `encode` | `str` | `"onehot"` | Кодирование: `ordinal`, `onehot`, `target`, `none` |
 | `smoothing` | `float` | `10.0` | Сглаживание для target-encoding |
+
+#### `columns`
+
+По-колоночные переопределения — не заданные поля наследуют глобальные стратегии выше.
+`none` полностью пропускает колонку (без импутации/кодирования/масштабирования).
+
+| Поле | Тип | Описание |
+|---|---|---|
+| `encode` | `str` | Переопределение кодирования: `ordinal`, `onehot`, `none` |
+| `impute` | `str` | Переопределение импутации: `mean`, `median`, `most_frequent`, `constant`, `none` |
+| `scale` | `str` | Переопределение масштабирования: `standard`, `robust`, `minmax`, `none` |
+| `fill_value` | `float` | Значение для `impute: "constant"` |
+
+```yaml
+handling:
+  numbers: { impute: "median", scale: "robust" }
+  categories: { encode: "onehot" }
+  columns:
+    cat1: { encode: "ordinal" }       # одна колонка ordinal, остальные one-hot
+    cat2: { encode: "none" }          # оставить как есть (CatBoost сам обработает)
+    num1: { scale: "none" }           # без масштабирования для этой колонки
+    num2: { impute: "constant", fill_value: 0 }
+```
 
 #### `sequence_token`
 

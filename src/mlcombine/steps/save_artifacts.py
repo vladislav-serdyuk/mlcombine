@@ -53,14 +53,14 @@ class SaveArtifactsStep(BaseStep[PipelineContext]):
                 json.dump(context.artifacts.feature_names, f)
             logger.info("Feature names saved to %s", fn_path)
 
-        if context.artifacts.imputer is not None:
-            joblib.dump(context.artifacts.imputer, out / "imputer.joblib")
-            logger.info("Imputer saved")
+        if context.artifacts.imputers:
+            joblib.dump(context.artifacts.imputers, out / "imputers.joblib")
+            logger.info("Imputers saved")
         if context.artifacts.encoders:
             joblib.dump(context.artifacts.encoders, out / "encoders.joblib")
             logger.info("Encoders saved")
-        if context.artifacts.scaler is not None:
-            joblib.dump(context.artifacts.scaler, out / "scaler.joblib")
-            logger.info("Scaler saved")
+        if context.artifacts.scalers:
+            joblib.dump(context.artifacts.scalers, out / "scalers.joblib")
+            logger.info("Scalers saved")
 
         return context

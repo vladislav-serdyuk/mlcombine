@@ -68,8 +68,23 @@ class HandlingCategoriesConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    encode: EncodeStrategy = EncodeStrategy.ORDINAL
+    encode: EncodeStrategy = EncodeStrategy.ONEHOT
     smoothing: float = 10.0
+
+
+class ColumnHandlingConfig(BaseModel):
+    """Per-column overrides for feature handling (partial — inherit globals).
+
+    Unset fields fall back to the global ``HandlingConfig`` strategies.
+    ``none`` skips the column entirely (no imputation/encoding/scaling).
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    encode: EncodeStrategy | None = None
+    impute: ImputeStrategy | None = None
+    scale: ScaleStrategy | None = None
+    fill_value: float | None = None
 
 
 class HandlingConfig(BaseModel):
@@ -79,6 +94,7 @@ class HandlingConfig(BaseModel):
 
     numbers: HandlingNumbersConfig = Field(default_factory=HandlingNumbersConfig)
     categories: HandlingCategoriesConfig = Field(default_factory=HandlingCategoriesConfig)
+    columns: dict[str, ColumnHandlingConfig] = Field(default_factory=dict)
 
 
 class LayerConfig(BaseModel):

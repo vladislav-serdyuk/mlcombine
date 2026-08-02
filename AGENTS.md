@@ -8,7 +8,7 @@ Dev-зависимости (catboost, torch, pyarrow, pre-commit, pytest, ruff, 
 
 ## Тестирование
 ```bash
-.venv/bin/python -m pytest tests/ -q           # 247 passed, 1 skip (sklearn text)
+.venv/bin/python -m pytest tests/ -q           # 257 passed, 1 skip (sklearn text)
 .venv/bin/python -m pytest tests/test_registry.py -q
 .venv/bin/python -m pytest tests/test_factory.py -q
 .venv/bin/python -m pytest tests/test_tuner.py -q
@@ -105,6 +105,14 @@ model:
 - Predict-mode EncodeScaleStep: если `encode: none` и `scale: none` — артефакты
   не загружаются (их просто нет). Если encode/scale активны а артефактов нет —
   `RuntimeError`. `_fit_on_predict_data` удалён (был data leakage).
+- Per-column handling (`handling.columns`): значения `ColumnHandlingConfig` —
+  partial overrides, `none` пропускает колонку. Только encode/impute имеют
+  per-column логику в `EncodeScaleStep`/`ImputeStep`; scale тоже per-column
+  (`self.scalers_: dict[str, scaler]`, артефакт `scalers.joblib`, вместо
+  одного `scaler_`/`scaler.joblib`). Целевая колонка исключается из scaling
+  и imputation.
+- Default кодирование — `onehot` (`EncodeStrategy.ONEHOT` в конфиге),
+  не `ordinal`!
 - PyTorch: использовать `torch.tensor(...)`, а НЕ `torch.from_numpy(...)` —
   from_numpy требует writable numpy array (warning при read-only данных, `-W error` ловит).
 - Тесты скипаются по модульным флагам `HAS_*` (catboost/torch/lightgbm) —
