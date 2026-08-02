@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import sys
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
+import pytest
 
 from mlcombine.core.pipeline import PipelineEngine
 from mlcombine.core.types import MLCombineConfig, PipelineContext
+from mlcombine.steps.cross_encoder import CrossEncoderStep
 
 
 def _write_csv(path: Path, df: pd.DataFrame) -> Path:
@@ -101,6 +104,20 @@ def _features_for_predict(ctx: PipelineContext) -> pd.DataFrame:
 
 class TestE2EMini:
     """Mini end-to-end test covering core functionality."""
+
+    def test_cross_encoder_lazy_torch_import(self, tmp_path, monkeypatch):
+        """torch must not be imported at module level — a config without
+        cross_encoder must work even when torch is missing."""
+        paths = _make_data(tmp_path)
+        cfg = _build_config(paths["train"], paths["test"], with_split=True)
+        ctx = _run_train(cfg)
+        assert ctx.artifacts.model is not None
+
+        step = CrossEncoderStep(cfg)
+        assert step.is_required(cfg) is False
+        monkeypatch.setitem(sys.modules, "torch", None)
+        with pytest.raises(RuntimeError, match="requires 'torch'"):
+            step._load_model()
 
     def test_catboost_classification_with_holdout(self, tmp_path):
         paths = _make_data(tmp_path)

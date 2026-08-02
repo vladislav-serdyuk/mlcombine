@@ -29,7 +29,6 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 import pandas as pd
-import torch
 from tqdm import tqdm
 
 from mlcombine.core.registry import registry
@@ -74,6 +73,10 @@ class CrossEncoderStep(BaseStep[PipelineContext]):
 
     def _load_model(self) -> CrossEncoder:
         try:
+            import torch
+        except ImportError as e:
+            raise RuntimeError("CrossEncoderStep requires 'torch' — install it with 'pip install torch' or add 'torch' to project dependencies.") from e
+        try:
             torch.set_num_threads(1)
         except Exception as e:
             logger.debug("Could not set torch num_threads: %s", e)
@@ -88,6 +91,8 @@ class CrossEncoderStep(BaseStep[PipelineContext]):
         self._model = None
         gc.collect()
         try:
+            import torch
+
             torch.set_num_threads(1)
             if torch.cuda.is_available():
                 torch.cuda.empty_cache()
@@ -150,6 +155,7 @@ class CrossEncoderStep(BaseStep[PipelineContext]):
         """Compute cross-encoder scores for a single text pair across all rows."""
         if self._model is None:
             self._model = self._load_model()
+        import torch
 
         texts_a = df[col_a].fillna("").astype(str).tolist()
         texts_b = df[col_b].fillna("").astype(str).tolist()
