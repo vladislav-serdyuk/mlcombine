@@ -45,6 +45,17 @@ class ModelPredictStep(BaseStep[PipelineContext]):
             if to_drop:
                 test_df = test_df.drop(columns=to_drop)
 
+        if self._id_col is not None and self._id_col != "" and self._id_col in test_df.columns:
+            context.data.prediction_ids = test_df[self._id_col]
+        elif context.data.prediction_ids is None:
+            if self._id_col == "":
+                context.data.prediction_ids = pd.Series(range(len(test_df)))
+            else:
+                context.data.prediction_ids = None
+
+        if self._id_col and self._id_col in test_df.columns:
+            test_df = test_df.drop(columns=[self._id_col])
+
         preds = model.predict(test_df)
         preds_series = pd.Series(preds.ravel())
 

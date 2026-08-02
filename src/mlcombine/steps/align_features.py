@@ -25,7 +25,7 @@ class AlignFeaturesStep(BaseStep[PipelineContext]):
     predict = True
 
     def __init__(self, cfg: MLCombineConfig, *, predict: bool = False, weights: str | None = None) -> None:
-        pass
+        self._id_col = cfg.data.id_col
 
     def run(self, context: PipelineContext) -> PipelineContext:
         test_df = context.data.test_df
@@ -37,6 +37,10 @@ class AlignFeaturesStep(BaseStep[PipelineContext]):
         if not feature_names:
             logger.warning("No feature_names in artifacts — skipping feature alignment")
             return context
+
+        # preserve the id column before dropping non-feature columns
+        if self._id_col and self._id_col in test_df.columns and context.data.prediction_ids is None:
+            context.data.prediction_ids = test_df[self._id_col]
 
         missing = [f for f in feature_names if f not in test_df.columns]
         extra = [c for c in test_df.columns if c not in feature_names]

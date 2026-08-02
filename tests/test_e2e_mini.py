@@ -265,7 +265,12 @@ class TestE2EMini:
             },
         }
         cfg = MLCombineConfig(**raw)
-        _run_train(cfg)
+        ctx = _run_train(cfg)
+
+        # model must not be trained on the id column
+        feature_names = ctx.artifacts.model._model.feature_names_  # type: ignore[attr-defined]
+        assert "id" not in feature_names
+
         engine = PipelineEngine.from_config(cfg, predict=True)
         engine.run_all(PipelineContext())
 

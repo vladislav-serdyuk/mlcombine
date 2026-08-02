@@ -38,6 +38,7 @@ class EvaluateStep(BaseStep[PipelineContext]):
         self._metrics: list[str] | None = ecfg.get("metrics", None)
         self._target_col = cfg.data.target_col
         self._treatment_col = cfg.data.treatment_col
+        self._id_col = cfg.data.id_col
         self._drop_columns: list[str] = cfg.data.drop_columns
 
     def run(self, context: PipelineContext) -> PipelineContext:
@@ -67,6 +68,8 @@ class EvaluateStep(BaseStep[PipelineContext]):
             drop_cols.append(self._treatment_col)
         if self._drop_columns:
             drop_cols.extend(c for c in self._drop_columns if c in df.columns)
+        if self._id_col and self._id_col in df.columns:
+            drop_cols.append(self._id_col)
         y_true = df[target]
         x = df.drop(columns=drop_cols)
         model = context.artifacts.model
@@ -110,6 +113,8 @@ class EvaluateStep(BaseStep[PipelineContext]):
                 drop_cols = [target]
                 if self._treatment_col and self._treatment_col in context.data.train_df.columns:
                     drop_cols.append(self._treatment_col)
+                if self._id_col and self._id_col in context.data.train_df.columns:
+                    drop_cols.append(self._id_col)
                 x = context.data.train_df.drop(columns=drop_cols)
 
         results: dict[str, float] = {}

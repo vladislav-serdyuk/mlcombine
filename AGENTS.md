@@ -111,6 +111,11 @@ model:
   (`self.scalers_: dict[str, scaler]`, артефакт `scalers.joblib`, вместо
   одного `scaler_`/`scaler.joblib`). Целевая колонка исключается из scaling
   и imputation.
+- `data.id_col` — глобальная колонка-ид: исключается из preprocessing
+  (ImputeStep/EncodeScaleStep), из фич модели (ModelFitStep, EvaluateStep,
+  ModelPredictStep) и сохраняется в сабмишен. `AlignFeaturesStep` (predict)
+  кладёт её в `prediction_ids` ДО `reindex(columns=feature_names)`, иначе
+  колонка теряется.
 - Default кодирование — `onehot` (`EncodeStrategy.ONEHOT` в конфиге),
   не `ordinal`!
 - PyTorch: использовать `torch.tensor(...)`, а НЕ `torch.from_numpy(...)` —

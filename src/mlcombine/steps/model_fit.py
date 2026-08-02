@@ -27,6 +27,7 @@ class ModelFitStep(BaseStep[PipelineContext]):
 
     def __init__(self, cfg: MLCombineConfig, *, predict: bool = False, weights: str | None = None) -> None:
         self._drop_columns: list[str] = cfg.data.drop_columns
+        self._id_col = cfg.data.id_col
 
     def run(self, context: PipelineContext) -> PipelineContext:
         """Fit the model using train_df and target_col from context."""
@@ -61,6 +62,8 @@ class ModelFitStep(BaseStep[PipelineContext]):
         treatment = df[treatment_col] if treatment_col else None
         if treatment_col:
             x = x.drop(columns=[treatment_col])
+        if self._id_col and self._id_col in x.columns:
+            x = x.drop(columns=[self._id_col])
 
         model = context.artifacts.model
         if model is None:
