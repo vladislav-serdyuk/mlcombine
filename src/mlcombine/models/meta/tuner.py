@@ -47,6 +47,10 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
+# Metrics where a lower value is better (optuna study direction "minimize").
+# Everything else is maximized (accuracy, f1, auc, ...).
+_MINIMIZE_METRICS = frozenset({"rmse", "mse", "mae", "mape", "logloss"})
+
 # Module-level cache: maps config hash → best params discovered.
 # Shared across all TunerWrapper instances so that OOF folds 2+ skip optuna.
 _TUNER_BEST_PARAMS: dict[str, dict[str, Any]] = {}
@@ -131,6 +135,10 @@ class TunerWrapper:
         if self._task_type in ("classification", "multitask"):
             return "f1"
         return "rmse"
+
+    def _study_direction(self) -> str:
+        metric = self._tune_metric or self._default_tune_metric()
+        return "minimize" if metric in _MINIMIZE_METRICS else "maximize"
 
     def _suggest_params(self, trial: optuna.Trial) -> dict[str, object]:
         """Convert search_space config to optuna trial suggestions."""
@@ -242,7 +250,7 @@ class TunerWrapper:
             )
         )
 
-        study = optuna.create_study(direction="maximize")
+        study = optuna.create_study(direction=self._study_direction())
         interrupted = False
 
         try:
