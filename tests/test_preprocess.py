@@ -115,3 +115,40 @@ class TestEncodeScaleStep:
         assert ctx.data.test_df is not None
         # unknown category should get -1
         assert ctx.data.test_df["cat1"].iloc[0] == -1
+
+    def test_onehot_encode(self, sample_df):
+        ctx = PipelineContext(data=PipelineData(train_df=sample_df.copy()))
+        step = EncodeScaleStep(_encode_cfg(encode="onehot", scale="none"))
+        ctx = step.run(ctx)
+        df = ctx.data.train_df
+        assert df is not None
+        assert "cat1" not in df.columns
+        n_categories = len(sample_df["cat1"].cat.categories)
+        onehot_cols = [c for c in df.columns if c.startswith("cat1_")]
+        assert len(onehot_cols) == n_categories
+        # exactly one active column per row
+        assert (df[onehot_cols].sum(axis=1) == 1).all()
+
+    def test_onehot_unknown_category(self, sample_df):
+        train = sample_df.copy()
+        test = sample_df.copy()
+        test["cat1"] = test["cat1"].cat.add_categories("unseen_category")
+        test.loc[0, "cat1"] = "unseen_category"
+        ctx = PipelineContext(data=PipelineData(train_df=train, test_df=test))
+        step = EncodeScaleStep(_encode_cfg(encode="onehot", scale="none"))
+        ctx = step.run(ctx)
+        assert ctx.data.test_df is not None
+        onehot_cols = [c for c in ctx.data.test_df.columns if c.startswith("cat1_")]
+        # unknown category → all zero columns
+        assert ctx.data.test_df[onehot_cols].iloc[0].sum() == 0
+
+    def test_onehot_with_nan(self, sample_df):
+        train = sample_df.copy()
+        train.loc[0, "cat1"] = None
+        ctx = PipelineContext(data=PipelineData(train_df=train, test_df=train.copy()))
+        step = EncodeScaleStep(_encode_cfg(encode="onehot", scale="none"))
+        ctx = step.run(ctx)
+        assert ctx.data.train_df is not None
+        onehot_cols = [c for c in ctx.data.train_df.columns if c.startswith("cat1_")]
+        # NaN gets its own category → exactly one active column per row
+        assert (ctx.data.train_df[onehot_cols].sum(axis=1) == 1).all()

@@ -11,7 +11,7 @@ import logging
 import numpy as np
 import pandas as pd
 from sklearn.impute import SimpleImputer
-from sklearn.preprocessing import MinMaxScaler, OrdinalEncoder, RobustScaler, StandardScaler
+from sklearn.preprocessing import MinMaxScaler, OneHotEncoder, OrdinalEncoder, RobustScaler, StandardScaler
 
 from mlcombine.core.registry import registry
 from mlcombine.core.types import (
@@ -144,11 +144,11 @@ class ImputeStep(BaseStep[PipelineContext]):
 class EncodeScaleStep(BaseStep[PipelineContext]):
     """Encode categorical features and scale numeric features.
 
-    ``EncodeStrategy.ORDINAL`` is supported for in-place encoding.
-    ``EncodeStrategy.TARGET`` is **blocked** with ``NotImplementedError``
-    because it requires OOF isolation. Use ``_target_encode()``
-    (via the ``fold_ensemble`` meta-provider with ``target_encode_cols``)
-    for OOF-safe target encoding instead.
+    ``EncodeStrategy.ORDINAL`` and ``EncodeStrategy.ONEHOT`` are supported
+    for in-place encoding. ``EncodeStrategy.TARGET`` is **blocked** with
+    ``NotImplementedError`` because it requires OOF isolation. Use
+    ``_target_encode()`` (via the ``fold_ensemble`` meta-provider with
+    ``target_encode_cols``) for OOF-safe target encoding instead.
 
     All transformation outputs are wrapped in ``pd.Series`` / ``pd.DataFrame``
     with the original row index to prevent index misalignment.
@@ -169,7 +169,7 @@ class EncodeScaleStep(BaseStep[PipelineContext]):
         self.treatment_col = cfg.data.treatment_col
         self._drop_columns: list[str] = cfg.data.drop_columns or []
 
-        self.encoders_: dict[str, OrdinalEncoder] = {}
+        self.encoders_: dict[str, OrdinalEncoder | OneHotEncoder] = {}
         self.scaler_: StandardScaler | RobustScaler | MinMaxScaler | None = None
         self.input_categorical_cols_: list[str] = []
         self.input_numeric_cols_: list[str] = []
@@ -215,8 +215,12 @@ class EncodeScaleStep(BaseStep[PipelineContext]):
             self.input_categorical_cols_ = []
         else:
             for col in self.input_categorical_cols_:
-                encoder = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
-                encoder.fit(X[[col]])
+                if self.encode_strategy == EncodeStrategy.ONEHOT:
+                    encoder: OrdinalEncoder | OneHotEncoder = OneHotEncoder(handle_unknown="ignore", sparse_output=False)
+                    encoder.fit(X[[col]].astype(object).fillna("__NaN__"))
+                else:
+                    encoder = OrdinalEncoder(handle_unknown="use_encoded_value", unknown_value=-1)
+                    encoder.fit(X[[col]])
                 self.encoders_[col] = encoder
 
         if self.scale_strategy != ScaleStrategy.NONE and self.input_numeric_cols_:
@@ -249,7 +253,14 @@ class EncodeScaleStep(BaseStep[PipelineContext]):
             if col not in X_copy.columns:
                 continue
             enc = self.encoders_.get(col)
-            if enc is not None:
+            if enc is None:
+                continue
+            if isinstance(enc, OneHotEncoder):
+                encoded = enc.transform(X_copy[[col]].astype(object).fillna("__NaN__"))
+                X_copy = X_copy.drop(columns=[col])
+                for j, fname in enumerate(enc.get_feature_names_out(input_features=[col])):
+                    X_copy[fname] = pd.Series(encoded[:, j], index=X.index)
+            else:
                 encoded = enc.transform(X_copy[[col]])
                 X_copy[col] = pd.Series(encoded.flatten(), index=X.index)
 
