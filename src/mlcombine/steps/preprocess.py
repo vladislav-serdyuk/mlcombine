@@ -146,9 +146,9 @@ class EncodeScaleStep(BaseStep[PipelineContext]):
 
     ``EncodeStrategy.ORDINAL`` is supported for in-place encoding.
     ``EncodeStrategy.TARGET`` is **blocked** with ``NotImplementedError``
-    because it requires OOF isolation. Use ``CVEvaluator._target_encode()``
-    (via the ``cv`` meta-provider with ``target_encode_cols``) for OOF-safe
-    target encoding instead.
+    because it requires OOF isolation. Use ``_target_encode()``
+    (via the ``fold_ensemble`` meta-provider with ``target_encode_cols``)
+    for OOF-safe target encoding instead.
 
     All transformation outputs are wrapped in ``pd.Series`` / ``pd.DataFrame``
     with the original row index to prevent index misalignment.
@@ -202,9 +202,9 @@ class EncodeScaleStep(BaseStep[PipelineContext]):
         if self.encode_strategy == EncodeStrategy.TARGET:
             raise NotImplementedError(
                 "EncodeStrategy.TARGET requires cross-validation for OOF isolation. "
-                "Use the 'cv' meta-provider with target_encode_cols instead:\n\n"
+                "Use the 'fold_ensemble' meta-provider with target_encode_cols instead:\n\n"
                 "  model:\n"
-                "    - provider: 'cv'\n"
+                "    - provider: 'fold_ensemble'\n"
                 "      model: 'base'\n"
                 "      params:\n"
                 "        target_encode_cols: ['cat_col']\n"

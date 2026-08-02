@@ -92,7 +92,7 @@ def my_provider_fn(backbone="rf", task_type=None, objective=None,
     return MyCustomModel()
 ```
 
-A provider can accept `model=` or `models=` keyword arguments for meta-providers (see built-in `cv`, `ensemble`, `tuner`).
+A provider can accept `model=` or `models=` keyword arguments for meta-providers (see built-in `fold_ensemble`, `ensemble`, `tuner`).
 
 Now in YAML (DAG format):
 

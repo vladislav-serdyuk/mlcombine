@@ -92,7 +92,7 @@ def my_provider_fn(backbone="rf", task_type=None, objective=None,
     return MyCustomModel()
 ```
 
-Провайдер может принимать `model=` или `models=` для meta-провайдеров (см. встроенные `cv`, `ensemble`, `tuner`).
+Провайдер может принимать `model=` или `models=` для meta-провайдеров (см. встроенные `fold_ensemble`, `ensemble`, `tuner`).
 
 Теперь в YAML (DAG-формат):
 

@@ -159,9 +159,9 @@ model:
 | `"pytorch"` | PyTorch (кастомная архитектура через `params.layers`) |
 | `"hybrid"` | Гибрид: изображения + текст → late-fusion |
 | `"tuner"` | Optuna-тюнинг гиперпараметров |
-| `"cv"` | K-Fold кросс-валидация с OOF-предсказаниями |
+| `"fold_ensemble"` | K-Fold обучение с OOF-предсказаниями + target encoding |
 | `"ensemble"` | Взвешенное усреднение нескольких моделей |
-| `"pairwise"` | Сравнение предсказаний двух моделей (DZen) |
+| `"stacking"` | Stacking с мета-моделью на OOF |
 | `"t_learner"` | Uplift T-learner |
 | `"s_learner"` | Uplift S-learner |
 | `"<custom>"` | Любой кастомный провайдер, зарегистрированный через `registry.model_provider()` |
@@ -186,7 +186,7 @@ model:
       weights: [0.6, 0.4]
 ```
 
-**CV с target-encoding:**
+**FoldEnsemble с target-encoding:**
 
 ```yaml
 model:
@@ -195,13 +195,14 @@ model:
     params:
       backbone: "random_forest"
       n_estimators: 200
-  - provider: "cv"
+  - provider: "fold_ensemble"
     model: "base"
     params:
       n_folds: 5
       stratified: true
       target_encode_cols: ["cat_col1"]
       target_encode_smoothing: 10.0
+      vote: "hard"
 ```
 
 **Optuna-тюнинг CatBoost:**
@@ -222,20 +223,6 @@ model:
       evaluator_params:
         n_folds: 3
         stratified: true
-```
-
-**Pairwise (DZen) — сравнение двух моделей:**
-
-```yaml
-model:
-  - id: "model_a"
-    provider: "catboost"
-  - id: "model_b"
-    provider: "lightgbm"
-  - provider: "pairwise"
-    models: ["model_a", "model_b"]
-    params:
-      metric: "cosine"
 ```
 
 **PyTorch с кастомными слоями:**

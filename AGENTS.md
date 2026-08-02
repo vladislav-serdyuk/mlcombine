@@ -51,7 +51,7 @@ model:
 ```
 
 Все провайдеры (catboost, sklearn, lightgbm, pytorch, hybrid, t_learner, s_learner, tuner,
-cv, ensemble, stacking, fold_ensemble, pairwise) зарегистрированы через `@registry.model_provider("name")`
+ensemble, stacking, fold_ensemble) зарегистрированы через `@registry.model_provider("name")`
 и являются **функциями**: `def provider_fn(backbone=..., task_type=..., objective=..., num_classes=None, input_size=None, **params)`.
 Meta-провайдеры получают `model=` или `models=`. `ModelBuilder.build_all(nodes, ...)` строит
 node'ы с топологической сортировкой по ссылкам.
@@ -73,13 +73,12 @@ model:
 ```
 
 ### Meta-провайдеры
-- `cv` — K-fold обучение вложенной модели, OOF-safe target encoding
-  (`target_encode_cols`), сохраняет `fold_models_`/`oof_preds_`; predict — усреднение.
-  Если в `DataConfig` задан `group_col` — используется `GroupKFold`.
+- `fold_ensemble` — K-fold обучение вложенной модели, OOF-safe target encoding
+  (`target_encode_cols`, `target_encode_smoothing` default 10.0), сохраняет
+  `fold_models_`/`oof_preds_`; predict — усреднение; `vote: "hard"|"soft"` (default `"hard"`,
+  hard дал лучший скор на практике). Если задан `group_col` — `StratifiedGroupKFold`.
 - `ensemble` — взвешенное усреднение predict/predict_proba (`weights`), fit — no-op.
-- `fold_ensemble` — `vote: "hard"|"soft"` (default `"hard"`); hard дал лучший скор на практике.
 - `stacking` — дорогой: N базовых моделей + мета-модель на OOF (6 CatBoost fit'ов — десятки минут).
-- `pairwise` — сравнивает две fitted модели: `metric: cosine|l1|l2`.
 - `EvaluateStep` — метрики (f1, accuracy, rmse, auc, logloss, mae, mape) на OOF или holdout.
 - Multi-model: `PipelineArtifacts.models: dict[str, object]` — `model_<id>.joblib`.
 - `TextEmbeddingStep` кэширует эмбеддинги в `cache_dir` (ключ SHA-256), авто-вставляется

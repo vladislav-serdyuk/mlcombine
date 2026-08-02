@@ -159,9 +159,9 @@ model:
 | `"pytorch"` | PyTorch (custom architecture via `params.layers`) |
 | `"hybrid"` | Hybrid: images + text → late-fusion |
 | `"tuner"` | Optuna hyperparameter tuning |
-| `"cv"` | K-Fold cross-validation with OOF predictions |
+| `"fold_ensemble"` | K-Fold training with OOF predictions + target encoding |
 | `"ensemble"` | Weighted averaging of multiple models |
-| `"pairwise"` | Compare predictions of two models (DZen) |
+| `"stacking"` | Stacking with meta-model on OOF |
 | `"t_learner"` | Uplift T-learner |
 | `"s_learner"` | Uplift S-learner |
 | `"<custom>"` | Any custom provider registered via `registry.model_provider()` |
@@ -186,7 +186,7 @@ model:
       weights: [0.6, 0.4]
 ```
 
-**CV with target-encoding:**
+**FoldEnsemble with target-encoding:**
 
 ```yaml
 model:
@@ -195,13 +195,14 @@ model:
     params:
       backbone: "random_forest"
       n_estimators: 200
-  - provider: "cv"
+  - provider: "fold_ensemble"
     model: "base"
     params:
       n_folds: 5
       stratified: true
       target_encode_cols: ["cat_col1"]
       target_encode_smoothing: 10.0
+      vote: "hard"
 ```
 
 **Optuna tuning for CatBoost:**
@@ -222,20 +223,6 @@ model:
       evaluator_params:
         n_folds: 3
         stratified: true
-```
-
-**Pairwise (DZen) — compare two models:**
-
-```yaml
-model:
-  - id: "model_a"
-    provider: "catboost"
-  - id: "model_b"
-    provider: "lightgbm"
-  - provider: "pairwise"
-    models: ["model_a", "model_b"]
-    params:
-      metric: "cosine"
 ```
 
 **PyTorch with custom layers:**

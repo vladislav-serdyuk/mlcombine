@@ -28,7 +28,7 @@ mlcombine train --config config.yaml
 
 - **Model DAG** — `model` теперь список `ModelNode` с поддержкой зависимостей (`model`/`models`), топологической сортировкой
 - **ModelBlueprint** — ленивое описание модели вместо прямого вызова провайдера
-- **Meta-провайдеры:** `cv` (K-Fold + OOF target encoding), `ensemble` (взвешенное усреднение), `pairwise` (DZen)
+- **Meta-провайдеры:** `fold_ensemble` (K-Fold + OOF target encoding), `ensemble` (взвешенное усреднение), `stacking` (мета-модель на OOF)
 - **Tuner** — Optuna-тюнинг с `search_space` в YAML
 - **CrossEncoderStep / PairwiseSimilarityStep** — скоринг текстовых пар (sentence-transformers)
 - **URL-датасеты** — `train_df`/`test_df` принимают HTTP/HTTPS URL, автоматическое скачивание и распаковка архивов
