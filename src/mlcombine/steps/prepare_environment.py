@@ -23,28 +23,42 @@ logger = logging.getLogger(__name__)
 _PARQUET_DEPS = ["fastparquet", "pyarrow"]
 
 
+def _log_install_output(prefix: str, output: bytes) -> None:
+    """Log pip/uv install output line-by-line through the Python logger."""
+    text = output.decode(errors="replace")
+    for line in text.splitlines():
+        if line.strip():
+            logger.info("%s: %s", prefix, line)
+
+
 def _install_package(package: str) -> None:
     """Install *package* via uv pip install or pip (fallback)."""
     if shutil.which("uv"):
         logger.info("Installing %s via uv pip install", package)
         try:
-            subprocess.run(
+            result = subprocess.run(
                 ["uv", "pip", "install", package],
                 check=True,
                 capture_output=True,
             )
+            _log_install_output("uv", result.stdout)
         except subprocess.CalledProcessError as e:
-            logger.error("uv pip install failed (stderr): %s", e.stderr.decode())
+            _log_install_output("uv", e.stdout)
+            _log_install_output("uv (error)", e.stderr)
+            logger.error("uv pip install failed for %s", package)
     else:
         logger.info("Installing %s via pip", package)
         try:
-            subprocess.run(
+            result = subprocess.run(
                 ["pip", "install", package],
                 check=True,
                 capture_output=True,
             )
+            _log_install_output("pip", result.stdout)
         except subprocess.CalledProcessError as e:
-            logger.error("pip install failed (stderr): %s", e.stderr.decode())
+            _log_install_output("pip", e.stdout)
+            _log_install_output("pip (error)", e.stderr)
+            logger.error("pip install failed for %s", package)
 
 
 def _is_parquet_path(value: object) -> bool:

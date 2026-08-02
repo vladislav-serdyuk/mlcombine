@@ -1,4 +1,4 @@
-"""Tests for PrepareEnvironmentStep — unit tests with mocks."""
+from __future__ import annotations
 
 import subprocess
 import sys
@@ -7,6 +7,8 @@ from unittest.mock import MagicMock, patch
 
 from mlcombine.core.types import MLCombineConfig, PipelineContext
 from mlcombine.steps.prepare_environment import PrepareEnvironmentStep
+
+_COMPLETED = subprocess.CompletedProcess(args=[], returncode=0, stdout=b"installed ok\n", stderr=b"")
 
 
 def _cfg(provider: str = "sklearn", auto_install: bool = False) -> MLCombineConfig:
@@ -89,6 +91,28 @@ class TestPrepareEnvironmentStep:
 
     @patch("mlcombine.steps.prepare_environment.importlib.import_module", side_effect=[ImportError("missing"), MagicMock()])
     @patch("mlcombine.steps.prepare_environment.shutil.which", return_value="/usr/bin/uv")
+    @patch(
+        "mlcombine.steps.prepare_environment.subprocess.run",
+        return_value=subprocess.CompletedProcess(args=[], returncode=0, stdout=b"  Downloaded catboost-1.2\n  Installed catboost-1.2\n", stderr=b""),
+    )
+    @patch("mlcombine.steps.prepare_environment.importlib.reload")
+    def test_install_output_is_logged(
+        self,
+        mock_reload: MagicMock,
+        mock_run: MagicMock,
+        mock_which: MagicMock,
+        mock_import: MagicMock,
+        caplog,
+    ) -> None:
+        step = PrepareEnvironmentStep(_cfg("catboost", auto_install=True))
+        with caplog.at_level("INFO"):
+            step.run(PipelineContext())
+        messages = [r.message for r in caplog.records]
+        assert any("uv:   Downloaded catboost-1.2" in m for m in messages)
+        assert any("uv:   Installed catboost-1.2" in m for m in messages)
+
+    @patch("mlcombine.steps.prepare_environment.importlib.import_module", side_effect=[ImportError("missing"), MagicMock()])
+    @patch("mlcombine.steps.prepare_environment.shutil.which", return_value="/usr/bin/uv")
     @patch("mlcombine.steps.prepare_environment.subprocess.run")
     @patch("mlcombine.steps.prepare_environment.importlib.reload")
     def test_installs_catboost_via_uv(
@@ -109,7 +133,7 @@ class TestPrepareEnvironmentStep:
 
     @patch("mlcombine.steps.prepare_environment.importlib.import_module", side_effect=[ImportError("missing"), MagicMock()])
     @patch("mlcombine.steps.prepare_environment.shutil.which", return_value="/usr/bin/uv")
-    @patch("mlcombine.steps.prepare_environment.subprocess.run")
+    @patch("mlcombine.steps.prepare_environment.subprocess.run", return_value=_COMPLETED)
     @patch("mlcombine.steps.prepare_environment.importlib.reload")
     def test_installs_lightgbm_via_uv(
         self,
@@ -129,7 +153,7 @@ class TestPrepareEnvironmentStep:
 
     @patch("mlcombine.steps.prepare_environment.importlib.import_module", side_effect=[ImportError("missing"), MagicMock()])
     @patch("mlcombine.steps.prepare_environment.shutil.which", return_value="/usr/bin/uv")
-    @patch("mlcombine.steps.prepare_environment.subprocess.run")
+    @patch("mlcombine.steps.prepare_environment.subprocess.run", return_value=_COMPLETED)
     @patch("mlcombine.steps.prepare_environment.importlib.reload")
     def test_installs_torch_via_uv_for_pytorch(
         self,
@@ -149,7 +173,7 @@ class TestPrepareEnvironmentStep:
 
     @patch("mlcombine.steps.prepare_environment.importlib.import_module", side_effect=[ImportError("missing"), MagicMock()])
     @patch("mlcombine.steps.prepare_environment.shutil.which", return_value="/usr/bin/uv")
-    @patch("mlcombine.steps.prepare_environment.subprocess.run")
+    @patch("mlcombine.steps.prepare_environment.subprocess.run", return_value=_COMPLETED)
     @patch("mlcombine.steps.prepare_environment.importlib.reload")
     def test_installs_torch_via_uv_for_hybrid(
         self,
@@ -169,7 +193,7 @@ class TestPrepareEnvironmentStep:
 
     @patch("mlcombine.steps.prepare_environment.importlib.import_module", side_effect=[ImportError("missing"), MagicMock()])
     @patch("mlcombine.steps.prepare_environment.shutil.which", return_value=None)
-    @patch("mlcombine.steps.prepare_environment.subprocess.run")
+    @patch("mlcombine.steps.prepare_environment.subprocess.run", return_value=_COMPLETED)
     @patch("mlcombine.steps.prepare_environment.importlib.reload")
     def test_falls_back_to_pip_when_uv_missing(
         self,
