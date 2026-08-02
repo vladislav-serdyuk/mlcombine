@@ -468,7 +468,7 @@ step_config:
 | Поле | Тип | По умолчанию | Описание |
 |---|---|---|---|
 | `output_dir` | `str` | `"./outputs"` | Директория для сохранения артефактов |
-| `output_file` | `str` | `"./outputs/result"` | Файл для предикшнов |
+| `output_file` | `str` | `"./outputs/submission.csv"` | Файл для предикшнов |
 | `fallback_on_error` | `bool` | `true` | Продолжить при ошибке (заглушка) |
 
 ---

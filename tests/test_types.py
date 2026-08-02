@@ -61,7 +61,7 @@ class TestMLCombineConfig:
     def test_trainer_default_paths(self):
         cfg = TrainerConfig()
         assert cfg.output_dir == "./outputs"
-        assert cfg.output_file == "./outputs/result"
+        assert cfg.output_file == "./outputs/submission.csv"
         assert not hasattr(cfg, "strict_inference_isolation")
 
     def test_uplift_provider_config(self):

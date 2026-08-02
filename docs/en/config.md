@@ -468,7 +468,7 @@ step_config:
 | Field | Type | Default | Description |
 |---|---|---|---|
 | `output_dir` | `str` | `"./outputs"` | Artifact output directory |
-| `output_file` | `str` | `"./outputs/result"` | Prediction output file |
+| `output_file` | `str` | `"./outputs/submission.csv"` | Prediction output file |
 | `fallback_on_error` | `bool` | `true` | Continue on error (placeholder) |
 
 ---

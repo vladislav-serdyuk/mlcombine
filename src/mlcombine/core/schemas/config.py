@@ -145,7 +145,7 @@ class TrainerConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     output_dir: str = "./outputs"
-    output_file: str = "./outputs/result"
+    output_file: str = "./outputs/submission.csv"
 
 
 class EnvironmentConfig(BaseModel):
