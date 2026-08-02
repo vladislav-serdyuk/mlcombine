@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import subprocess
 import sys
+import textwrap
 from pathlib import Path
 
 import numpy as np
@@ -10,6 +12,7 @@ import pytest
 from mlcombine.core.pipeline import PipelineEngine
 from mlcombine.core.types import MLCombineConfig, PipelineContext
 from mlcombine.steps.cross_encoder import CrossEncoderStep
+from mlcombine.steps.pairwise_similarity import PairwiseSimilarityStep
 
 
 def _write_csv(path: Path, df: pd.DataFrame) -> Path:
@@ -118,6 +121,49 @@ class TestE2EMini:
         monkeypatch.setitem(sys.modules, "torch", None)
         with pytest.raises(RuntimeError, match="requires 'torch'"):
             step._load_model()
+
+    def test_pairwise_similarity_lazy_torch_import(self, tmp_path, monkeypatch):
+        paths = _make_data(tmp_path)
+        cfg = _build_config(paths["train"], paths["test"])
+        step = PairwiseSimilarityStep(cfg)
+        assert step.is_required(cfg) is False
+        monkeypatch.setitem(sys.modules, "torch", None)
+        with pytest.raises(RuntimeError, match="requires 'torch'"):
+            step._load_model()
+
+    def test_import_works_without_torch(self):
+        """The whole package must import cleanly when torch is missing."""
+        code = textwrap.dedent(
+            """
+            import sys
+
+            class _BlockTorch:
+                def find_spec(self, name, path=None, target=None):
+                    if name == "torch" or name.startswith("torch."):
+                        raise ModuleNotFoundError(f"No module named '{name}'", name=name)
+                    return None
+
+            sys.meta_path.insert(0, _BlockTorch())
+            import mlcombine
+            from mlcombine.steps import (
+                CrossEncoderStep,
+                PairwiseSimilarityStep,
+                TextEmbeddingStep,
+            )
+            import mlcombine.models.providers.pytorch
+            import mlcombine.models.providers.hybrid
+            import mlcombine.core.tensor.backend_torch
+            print("IMPORT_OK")
+            """
+        )
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        assert result.returncode == 0, result.stderr
+        assert "IMPORT_OK" in result.stdout
 
     def test_catboost_classification_with_holdout(self, tmp_path):
         paths = _make_data(tmp_path)
