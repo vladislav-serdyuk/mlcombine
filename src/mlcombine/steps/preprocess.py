@@ -320,10 +320,10 @@ class EncodeScaleStep(BaseStep[PipelineContext]):
         """Fit on train, transform train + test, preserving indexes."""
         self._text_cols = [col for col, ft in (context.data.detected_types or {}).items() if ft == FeatureType.TEXT]
         if self._predict_mode:
-            if context.artifacts.encoders:
+            if self.encode_strategy not in (None, EncodeStrategy.NONE) and context.artifacts.encoders:
                 self.encoders_ = context.artifacts.encoders
                 self.input_categorical_cols_ = list(context.artifacts.encoders.keys())
-            if context.artifacts.scalers:
+            if self.scale_strategy not in (None, ScaleStrategy.NONE) and context.artifacts.scalers:
                 self.scalers_ = context.artifacts.scalers
                 self.input_numeric_cols_ = list(context.artifacts.scalers.keys())
 

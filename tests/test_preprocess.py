@@ -312,3 +312,31 @@ class TestEncodeScaleStep:
         assert len(onehot_cols) == len(sample_df["cat1"].cat.categories)
         # unknown category on predict → all zeros, not a crash
         assert predict_ctx.data.test_df[onehot_cols].iloc[0].sum() == 0
+
+    def test_predict_mode_encode_none_ignores_stale_encoders(self, sample_df):
+        """encode: none in predict must NOT apply old encoder artifacts.
+
+        Regression: stale encoders from a previous run (e.g. onehot) were
+        loaded unconditionally, encoding categorical columns that the model
+        expects to stay raw (CatBoost cat_features) and filling them with
+        NaN via column re-alignment.
+        """
+        train = sample_df.copy()
+        ctx = PipelineContext(data=PipelineData(train_df=train))
+        step = EncodeScaleStep(_encode_cfg(encode="onehot", scale="none"))
+        ctx = step.run(ctx)
+        assert ctx.artifacts.encoders  # stale artifacts exist
+
+        predict_ctx = PipelineContext(data=PipelineData(test_df=train.copy()))
+        predict_ctx.artifacts.encoders = ctx.artifacts.encoders
+        predict_ctx.artifacts.scalers = ctx.artifacts.scalers
+        predict_ctx.artifacts.scaler_features = ctx.artifacts.scaler_features
+        predict_ctx.data.detected_types = {"cat1": FeatureType.CATEGORY, "cat2": FeatureType.CATEGORY}
+        predict_step = EncodeScaleStep(_encode_cfg(encode="none", scale="none"), predict=True)
+        predict_ctx = predict_step.run(predict_ctx)
+
+        assert predict_ctx.data.test_df is not None
+        # raw categorical columns survive untouched — no onehot columns
+        assert {"cat1", "cat2"}.issubset(predict_ctx.data.test_df.columns)
+        assert not any(c.startswith("cat1_") for c in predict_ctx.data.test_df.columns)
+        assert predict_ctx.data.test_df["cat1"].isna().sum() == 0
