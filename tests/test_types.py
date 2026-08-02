@@ -35,6 +35,15 @@ class TestMLCombineConfig:
                 }
             )
 
+    def test_version_field_accepted(self):
+        raw = {
+            "version": "1.0",
+            "data": {"train_df": "t.csv", "test_df": "t.csv", "target_col": "t"},
+            "model": [{"provider": "sklearn"}],
+        }
+        cfg = MLCombineConfig(**raw)
+        assert cfg.version == "1.0"
+
     def test_removed_fields_rejected(self):
         with pytest.raises(ValidationError):
             MLCombineConfig(

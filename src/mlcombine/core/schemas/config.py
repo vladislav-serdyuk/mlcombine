@@ -175,6 +175,7 @@ class MLCombineConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    version: str | None = None
     plugins: list[str] = Field(default_factory=list)
     environment: EnvironmentConfig = Field(default_factory=EnvironmentConfig)
     pipeline: PipelineConfig = Field(default_factory=PipelineConfig)
