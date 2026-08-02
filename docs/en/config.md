@@ -85,6 +85,7 @@ Supported:
 | `target_col` | `str \| list[str] \| dict[str,str]` | **required** | Target column name (or list for multitask, or dict) |
 | `sep` | `str` | `","` | CSV separator |
 | `treatment_col` | `str \| None` | `None` | Treatment column (for uplift modeling) |
+| `id_col` | `str \| None` | `None` | Row id column — written to submission and excluded from preprocessing |
 | `drop_columns` | `list[str]` | `[]` | Columns to drop before training |
 | `force_prepare_dataset` | `bool` | `false` | Force re-download/extract |
 | `task_type` | `str \| None` | `None` | Explicit task type (`classification`, `regression`, `uplift`, `multitask`) |
@@ -463,21 +464,19 @@ step_config:
 
 #### `save_predictions`
 
-Prediction output file format. `id_col` controls which column is used as
-the row id in the submission.
+Prediction output format. The row id comes from the global `data.id_col`
+(the `id_col` setting below was moved there to keep step configs isolated).
 
 ```yaml
 step_config:
   save_predictions:
-    id_col: "id"          # column used as prediction row id (default: none)
-    target_col: "prediction"  # name of the prediction column
-    sep: ","              # CSV separator (auto: "," / "\t" for .tsv)
+    target_col: "rent_price"  # prediction column name (default: data.target_col)
+    sep: ","                  # CSV separator (auto: "," / "\t" for .tsv)
 ```
 
 | Field | Type | Default | Description |
 |---|---|---|---|
-| `id_col` | `str \| None` | `None` | Column to use as id; when unset, index is used |
-| `target_col` | `str` | `"prediction"` | Name of the prediction column |
+| `target_col` | `str \| None` | `data.target_col` | Name of the prediction column |
 | `sep` | `str \| None` | `None` | Separator (`","` or `"\t"` for `.tsv`) |
 
 #### `evaluate`

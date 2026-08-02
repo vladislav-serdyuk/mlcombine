@@ -10,12 +10,14 @@ from mlcombine.core.types import (
 from mlcombine.steps.preprocess import EncodeScaleStep, ImputeStep
 
 
-def _impute_cfg(strategy: str = "median", columns: dict[str, object] | None = None) -> MLCombineConfig:
+def _impute_cfg(strategy: str = "median", columns: dict[str, object] | None = None, id_col: str | None = None) -> MLCombineConfig:
     raw: dict[str, object] = {
         "data": {"train_df": "train.csv", "test_df": "test.csv", "target_col": "target"},
         "handling": {"numbers": {"impute": strategy}},
         "model": [{"provider": "sklearn"}],
     }
+    if id_col:
+        raw["data"] = {"train_df": "train.csv", "test_df": "test.csv", "target_col": "target", "id_col": id_col}
     if columns:
         raw["handling"] = {"numbers": {"impute": strategy}, "columns": columns}
     return MLCombineConfig(**raw)
@@ -26,6 +28,7 @@ def _encode_cfg(
     scale: str = "standard",
     target_col: str | None = "target",
     columns: dict[str, object] | None = None,
+    id_col: str | None = None,
 ) -> MLCombineConfig:
     raw: dict[str, object] = {
         "data": {"train_df": "train.csv", "test_df": "test.csv", "target_col": target_col or "target"},
@@ -35,6 +38,8 @@ def _encode_cfg(
         },
         "model": [{"provider": "sklearn"}],
     }
+    if id_col:
+        raw["data"] = {"train_df": "train.csv", "test_df": "test.csv", "target_col": target_col or "target", "id_col": id_col}
     if columns:
         raw["handling"] = {
             "categories": {"encode": encode, "smoothing": 10.0},
@@ -262,6 +267,28 @@ class TestEncodeScaleStep:
         assert abs(df["num2"].std() - 1.0) < 0.3
         # target column is never scaled
         assert df["target"].std() > 1.5
+
+    def test_id_col_not_scaled(self, sample_df):
+        train = sample_df.copy()
+        train["id"] = np.arange(7000, 7000 + len(train))
+        ctx = PipelineContext(data=PipelineData(train_df=train))
+        step = EncodeScaleStep(_encode_cfg(scale="standard", id_col="id"))
+        ctx = step.run(ctx)
+        df = ctx.data.train_df
+        assert df is not None
+        # id must keep its original values — never scaled as a feature
+        assert df["id"].tolist() == train["id"].tolist()
+
+    def test_id_col_not_imputed(self, sample_df):
+        train = sample_df.copy()
+        train["id"] = np.arange(7000, 7000 + len(train))
+        train.loc[::10, "id"] = np.nan
+        ctx = PipelineContext(data=PipelineData(train_df=train))
+        step = ImputeStep(_impute_cfg(strategy="median", id_col="id"))
+        ctx = step.run(ctx)
+        df = ctx.data.train_df
+        assert df is not None
+        assert df["id"].isna().any()
 
     def test_predict_mode_with_column_overrides(self, sample_df):
         train = sample_df.copy()

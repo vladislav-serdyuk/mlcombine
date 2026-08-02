@@ -195,7 +195,7 @@ class TestE2EProviders:
         pred_path = Path(cfg.trainer.output_file)
         assert pred_path.exists()
         result = pd.read_csv(pred_path)
-        assert "prediction" in result.columns
+        assert "target" in result.columns
         assert len(result) == 100
 
     @pytest.mark.parametrize("provider,params", _PROVIDER_CONFIGS)
@@ -406,5 +406,5 @@ trainer:
         assert predict_result.exit_code == 0, f"Predict failed:\n{predict_result.output}"
         assert output_file.exists()
         df = pd.read_csv(output_file)
-        assert "prediction" in df.columns
+        assert "target" in df.columns
         assert len(df) == 100

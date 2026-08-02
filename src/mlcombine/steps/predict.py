@@ -28,8 +28,7 @@ class ModelPredictStep(BaseStep[PipelineContext]):
     def __init__(self, cfg: MLCombineConfig, *, predict: bool = False, weights: str | None = None) -> None:
         self._drop_columns = cfg.data.drop_columns
         _, self._label_map = cfg.make_label_maps()
-        sp = getattr(cfg.step_config, "save_predictions", None) or {}
-        self._id_col = sp.get("id_col", None)
+        self._id_col = cfg.data.id_col
 
     def run(self, context: PipelineContext) -> PipelineContext:
         test_df = context.data.test_df

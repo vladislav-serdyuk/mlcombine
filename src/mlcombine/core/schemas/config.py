@@ -49,6 +49,7 @@ class DataConfig(BaseModel):
     target_col: TargetColumn
     sep: Separator = ","
     treatment_col: str | None = None
+    id_col: str | None = None
     drop_columns: list[str] = []
     force_prepare_dataset: bool = False
     task_type: TaskType | None = None

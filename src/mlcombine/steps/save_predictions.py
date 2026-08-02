@@ -20,8 +20,8 @@ class SavePredictionsStep(BaseStep[PipelineContext]):
     Configure via ``step_config.save_predictions``::
 
         save_predictions:
-          target_column: target
-          id_column: null
+          target_col: rent_price   # default: data.target_col
+          sep: ","
 
     Side Effects:
         - Creates parent directories and writes a CSV file to disk.
@@ -33,7 +33,8 @@ class SavePredictionsStep(BaseStep[PipelineContext]):
     def __init__(self, cfg: MLCombineConfig, *, predict: bool = False, weights: str | None = None) -> None:
         self._output_path = weights or cfg.trainer.output_file
         sp = getattr(cfg.step_config, "save_predictions", None) or {}
-        self._target_column = sp.get("target_col", "prediction")
+        default_target = cfg.data.target_col if isinstance(cfg.data.target_col, str) else "prediction"
+        self._target_column = sp.get("target_col") or default_target
         self._sep = sp.get("sep", None)
 
     def run(self, context: PipelineContext) -> PipelineContext:

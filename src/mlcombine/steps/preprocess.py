@@ -51,6 +51,7 @@ class ImputeStep(BaseStep[PipelineContext]):
         self.column_handling = cfg.handling.columns
         self.target_col = cfg.data.target_col if isinstance(cfg.data.target_col, str) else None
         self.treatment_col = cfg.data.treatment_col
+        self.id_col = cfg.data.id_col
         self._drop_columns: list[str] = cfg.data.drop_columns or []
         self.input_features_: list[str] = []
         self.imputers_: dict[str, SimpleImputer] = {}
@@ -83,6 +84,8 @@ class ImputeStep(BaseStep[PipelineContext]):
             self.input_features_.remove(self.treatment_col)
         if self.target_col and self.target_col in self.input_features_:
             self.input_features_.remove(self.target_col)
+        if self.id_col and self.id_col in self.input_features_:
+            self.input_features_.remove(self.id_col)
         if self._drop_columns:
             self.input_features_ = [c for c in self.input_features_ if c not in self._drop_columns]
         for col in self.input_features_:
@@ -176,6 +179,7 @@ class EncodeScaleStep(BaseStep[PipelineContext]):
         self.column_handling = cfg.handling.columns
         self.target_col = cfg.data.target_col if isinstance(cfg.data.target_col, str) else None
         self.treatment_col = cfg.data.treatment_col
+        self.id_col = cfg.data.id_col
         self._drop_columns: list[str] = cfg.data.drop_columns or []
 
         self.encoders_: dict[str, OrdinalEncoder | OneHotEncoder] = {}
@@ -206,6 +210,11 @@ class EncodeScaleStep(BaseStep[PipelineContext]):
                 self.input_categorical_cols_.remove(self.treatment_col)
             if self.treatment_col in self.input_numeric_cols_:
                 self.input_numeric_cols_.remove(self.treatment_col)
+        if self.id_col:
+            if self.id_col in self.input_categorical_cols_:
+                self.input_categorical_cols_.remove(self.id_col)
+            if self.id_col in self.input_numeric_cols_:
+                self.input_numeric_cols_.remove(self.id_col)
         if self._drop_columns:
             self.input_categorical_cols_ = [c for c in self.input_categorical_cols_ if c not in self._drop_columns]
             self.input_numeric_cols_ = [c for c in self.input_numeric_cols_ if c not in self._drop_columns]

@@ -480,5 +480,5 @@ class TestMicroPredictMode:
         pred_path = Path(cfg.trainer.output_file)
         assert pred_path.exists()
         result = pd.read_csv(pred_path)
-        assert "prediction" in result.columns
+        assert "target" in result.columns
         assert len(result) == N_ROWS // 2

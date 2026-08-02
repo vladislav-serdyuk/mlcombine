@@ -85,6 +85,7 @@ plugins:
 | `target_col` | `str \| list[str] \| dict[str,str]` | **обязательно** | Имя целевой колонки (или список для мультитаска, или словарь) |
 | `sep` | `str` | `","` | Разделитель в CSV |
 | `treatment_col` | `str \| None` | `None` | Колонка с treatment (для uplift-моделирования) |
+| `id_col` | `str \| None` | `None` | Колонка-ид строк — пишется в сабмишен и исключается из preprocessing |
 | `drop_columns` | `list[str]` | `[]` | Колонки для удаления перед обучением |
 | `force_prepare_dataset` | `bool` | `false` | Принудительно перезагрузить/распаковать датасет |
 | `task_type` | `str \| None` | `None` | Явное указание типа задачи (`classification`, `regression`, `uplift`, `multitask`) |
@@ -463,20 +464,19 @@ step_config:
 
 #### `save_predictions`
 
-Формат файла с предиктами. `id_col` задаёт колонку с id строк в сабмишене.
+Формат вывода предиктов. Колонка-ид берётся из глобального `data.id_col`
+(настройка `id_col` ниже перенесена туда, чтобы конфиги шагов были изолированы).
 
 ```yaml
 step_config:
   save_predictions:
-    id_col: "id"              # колонка-ид строк предикта (default: нет)
-    target_col: "prediction"  # название колонки с предиктами
+    target_col: "rent_price"  # название колонки предиктов (default: data.target_col)
     sep: ","                  # разделитель CSV (auto: "," / "\t" для .tsv)
 ```
 
 | Поле | Тип | По умолчанию | Описание |
 |---|---|---|---|
-| `id_col` | `str \| None` | `None` | Колонка для id; без неё используется индекс |
-| `target_col` | `str` | `"prediction"` | Название колонки с предиктами |
+| `target_col` | `str \| None` | `data.target_col` | Название колонки с предиктами |
 | `sep` | `str \| None` | `None` | Разделитель (`","` или `"\t"` для `.tsv`) |
 
 #### `evaluate`

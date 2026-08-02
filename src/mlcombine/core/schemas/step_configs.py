@@ -119,8 +119,7 @@ class TextEmbeddingStepConfig(BaseModel):
 class SavePredictionsStepConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    target_col: str = "prediction"
-    id_col: str | None = None
+    target_col: str | None = None
 
 
 class StepConfigs(BaseModel):

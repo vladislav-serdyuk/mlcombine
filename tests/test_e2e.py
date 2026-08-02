@@ -197,7 +197,7 @@ class TestE2EPredict:
         pred_path = Path(cfg.trainer.output_file)
         assert pred_path.exists()
         df = pd.read_csv(pred_path)
-        assert "prediction" in df.columns
+        assert "target" in df.columns
         assert len(df) == 100
 
 

@@ -228,8 +228,50 @@ class TestE2EMini:
         pred_path = Path(cfg.trainer.output_file)
         assert pred_path.exists()
         result = pd.read_csv(pred_path)
-        assert "prediction" in result.columns
+        assert "target" in result.columns
         assert len(result) == 100
+
+    def test_submission_keeps_original_id_column(self, tmp_path):
+        rng = np.random.default_rng(7)
+        n = 100
+        df = pd.DataFrame(
+            {
+                "id": np.arange(7000, 7000 + n),
+                "num1": rng.normal(0, 1, n),
+                "cat1": np.random.choice(["a", "b", "c"], n),
+                "target": rng.normal(5, 2, n),
+            }
+        )
+        train = _write_csv(tmp_path / "train.csv", df)
+        test = _write_csv(tmp_path / "test.csv", df.copy())
+
+        raw: dict = {
+            "version": "1.0",
+            "data": {
+                "train_df": str(train),
+                "test_df": str(test),
+                "target_col": "target",
+                "id_col": "id",
+            },
+            "model": [
+                {
+                    "provider": "catboost",
+                    "params": {"backbone": "gradient_boosting", "iterations": 10, "verbose": False},
+                },
+            ],
+            "trainer": {
+                "output_dir": str(tmp_path / "outputs"),
+                "output_file": str(tmp_path / "outputs" / "submission.csv"),
+            },
+        }
+        cfg = MLCombineConfig(**raw)
+        _run_train(cfg)
+        engine = PipelineEngine.from_config(cfg, predict=True)
+        engine.run_all(PipelineContext())
+
+        result = pd.read_csv(tmp_path / "outputs" / "submission.csv")
+        assert list(result.columns) == ["id", "target"]
+        assert result["id"].tolist() == list(range(7000, 7000 + n))
 
     def test_evaluate_step_holdout_metrics(self, tmp_path):
         paths = _make_data(tmp_path)
