@@ -106,6 +106,20 @@ class ModelObjective(StrEnum):
     RMSE = "RMSE"
 
 
+# ── metric direction ────────────────────────────────────────────────
+
+
+class MetricDirection(StrEnum):
+    """Whether higher or lower metric values are better.
+
+    Used by the metric registry (``@registry.metric(..., direction=...)``)
+    so that consumers like the optuna tuner know how to optimize.
+    """
+
+    MINIMIZE = "minimize"
+    MAXIMIZE = "maximize"
+
+
 # ── uplift ───────────────────────────────────────────────────────────
 
 

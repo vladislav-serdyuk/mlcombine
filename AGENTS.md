@@ -85,6 +85,12 @@ model:
   перед `CreateModelStep`.
 
 ## Известные проблемы
+- Метрики в реестре (`@registry.metric(name, direction=...)`) хранят `MetricDirection`
+  (`MINIMIZE`/`MAXIMIZE`) — источник истины для направления optuna-тунера
+  (`TunerWrapper._study_direction`). Fallback — `_MINIMIZE_METRICS` в `tuner.py`
+  (loss-метрики без direction). `registry.metric.get(name)` возвращает только
+  `(fn, kwargs)`; метаданные — через `get_meta(name)`. Метрики в `core/metric.py`
+  зарегистрированы с direction; при `registry.metric.clear()`/reload — перерегистрируются.
 - Ссылки `model`/`models` резолвятся по ключу `node.id or node.provider`
   (`ModelBuilder._resolve_deps`, `_topological_sort`). Если в конфиге два node'а
   с одним провайдером — ссылка по имени провайдера молча резолвится в последний

@@ -35,7 +35,7 @@ import numpy as np
 from numpy.typing import NDArray
 import pandas as pd
 
-from mlcombine.core.enums import TaskType
+from mlcombine.core.enums import MetricDirection, TaskType
 from mlcombine.core.protocols import SupportedModel
 from mlcombine.core.registry import registry
 from mlcombine.core.schemas.blueprint import ModelBlueprint
@@ -47,8 +47,9 @@ if TYPE_CHECKING:
 
 logger = logging.getLogger(__name__)
 
-# Metrics where a lower value is better (optuna study direction "minimize").
-# Everything else is maximized (accuracy, f1, auc, ...).
+# Fallback for metrics not registered in the registry (or registered without
+# a direction): lower is better for loss-like names. The registry is the
+# primary source of truth (see _study_direction).
 _MINIMIZE_METRICS = frozenset({"rmse", "mse", "mae", "mape", "logloss"})
 
 # Module-level cache: maps config hash → best params discovered.
@@ -138,6 +139,9 @@ class TunerWrapper:
 
     def _study_direction(self) -> str:
         metric = self._tune_metric or self._default_tune_metric()
+        meta = registry.metric.get_meta(metric)
+        if meta is not None and isinstance(meta["direction"], MetricDirection):
+            return meta["direction"].value
         return "minimize" if metric in _MINIMIZE_METRICS else "maximize"
 
     def _suggest_params(self, trial: optuna.Trial) -> dict[str, object]:

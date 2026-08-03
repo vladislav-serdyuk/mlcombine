@@ -31,12 +31,12 @@ from __future__ import annotations
 import logging
 from abc import ABC, abstractmethod
 from collections.abc import Callable
-from typing import Any, overload
+from typing import Any, NamedTuple, overload
 
 import pandas as pd
 
 from mlcombine.core.evaluator import BaseArchitectureValidator
-from mlcombine.core.enums import TensorBackendType
+from mlcombine.core.enums import MetricDirection, TensorBackendType
 from mlcombine.core.protocols import (
     ActivationProtocol,
     LayerBuilderProtocol,
@@ -282,49 +282,83 @@ class ArchitectureValidatorRegistry:
 # ── MetricRegistry ─────────────────────────────────────────────────────────
 
 
+class MetricEntry(NamedTuple):
+    """A registered metric: callable, default kwargs, and optimization direction."""
+
+    fn: Callable[..., float]
+    kwargs: dict[str, object]
+    direction: MetricDirection
+
+
 class MetricRegistry:
     """Registry for named metric functions with default keyword arguments.
 
     Usage::
 
         # decorator
-        @registry.metric("f1", average="weighted")
+        @registry.metric("f1", average="weighted", direction=MetricDirection.MAXIMIZE)
         def f1(y_true, y_pred):
             return f1_score(y_true, y_pred, average="weighted")
 
         # direct register
-        registry.metric("rmse", root_mean_squared_error)
+        registry.metric("rmse", root_mean_squared_error, direction=MetricDirection.MINIMIZE)
 
     Lookup::
 
         fn, kwargs = registry.metric.get("f1")
         value = fn(y_true, y_pred, **kwargs)
+        meta = registry.metric.get_meta("f1")  # {"fn":..., "kwargs":..., "direction":...}
+
+    ``direction`` (``MetricDirection``) declares whether higher or lower
+    values are better — consumers like the optuna tuner use it to decide
+    the optimization direction. Defaults to ``MAXIMIZE``.
     """
 
     def __init__(self) -> None:
-        self._metrics: dict[str, tuple[Callable[..., float], dict[str, object]]] = {}
+        self._metrics: dict[str, MetricEntry] = {}
 
-    def __call__(self, name: str, **default_kwargs: object) -> Callable[[Callable[..., float]], Callable[..., float]]:
+    def __call__(
+        self,
+        name: str,
+        *,
+        direction: MetricDirection = MetricDirection.MAXIMIZE,
+        **default_kwargs: object,
+    ) -> Callable[[Callable[..., float]], Callable[..., float]]:
         """Decorator: register a callable as a named metric.
 
         Parameters in *default_kwargs* are passed to the callable at
-        evaluation time.
+        evaluation time; *direction* is stored as metadata only.
         """
 
         def _wrapper(fn: Callable[..., float]) -> Callable[..., float]:
-            self._metrics[name] = (fn, default_kwargs)
+            self._metrics[name] = MetricEntry(fn, default_kwargs, MetricDirection(direction))
             logger.info("Metric %-25s registered", name)
             return fn
 
         return _wrapper
 
-    def register(self, name: str, fn: Callable[..., float], **default_kwargs: object) -> None:
+    def register(
+        self,
+        name: str,
+        fn: Callable[..., float],
+        *,
+        direction: MetricDirection = MetricDirection.MAXIMIZE,
+        **default_kwargs: object,
+    ) -> None:
         """Register *fn* as metric *name* with optional default kwargs."""
-        self._metrics[name] = (fn, default_kwargs)
+        self._metrics[name] = MetricEntry(fn, default_kwargs, MetricDirection(direction))
         logger.info("Metric %-25s registered", name)
 
     def get(self, name: str) -> tuple[Callable[..., float], dict[str, object]] | None:
-        return self._metrics.get(name)
+        entry = self._metrics.get(name)
+        return (entry.fn, entry.kwargs) if entry is not None else None
+
+    def get_meta(self, name: str) -> dict[str, object] | None:
+        """Return ``{fn, kwargs, direction}`` metadata for a metric, or ``None``."""
+        entry = self._metrics.get(name)
+        if entry is None:
+            return None
+        return {"fn": entry.fn, "kwargs": entry.kwargs, "direction": entry.direction}
 
     @property
     def metric_names(self) -> list[str]:

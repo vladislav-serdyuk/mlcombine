@@ -126,6 +126,28 @@ class TestTuner:
         )
         assert t._study_direction() == "maximize"
 
+    def test_tuner_study_direction_from_registry(self):
+        """Custom metric direction in the registry drives the study direction."""
+        from mlcombine.core.registry import registry
+        from mlcombine.models.meta.tuner import TunerWrapper
+
+        @registry.metric("custom_min_metric", direction="minimize")
+        def _fn(y_true, y_pred):
+            return 0.0
+
+        try:
+            t = TunerWrapper(
+                target_provider="sklearn",
+                target_params={},
+                search_space={},
+                n_trials=1,
+                task_type="regression",
+                tune_metric="custom_min_metric",
+            )
+            assert t._study_direction() == "minimize"
+        finally:
+            registry.metric._metrics.pop("custom_min_metric", None)
+
     def test_tuner_regression_improves_mae(self, builder):
         """Regression tuning with tune_metric=mae fits and improves MAE."""
         rng = np.random.default_rng(7)

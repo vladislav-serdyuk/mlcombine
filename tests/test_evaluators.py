@@ -5,6 +5,7 @@ import pandas as pd
 import pytest
 
 from mlcombine.core.metric import DEFAULT_METRICS
+from mlcombine.core.enums import MetricDirection
 from mlcombine.core.registry import registry
 from mlcombine.core.types import MLCombineConfig, PipelineContext
 from mlcombine.evaluators.holdout import HoldoutArchitectureValidator
@@ -23,6 +24,38 @@ class TestMetricRegistry:
             fn, kwargs = entry
             assert fn is not None, f"metric {name!r} has no function"
             assert isinstance(kwargs, dict)
+
+    def test_all_metrics_have_direction(self):
+        for name in registry.metric.metric_names:
+            meta = registry.metric.get_meta(name)
+            assert meta is not None, f"metric {name!r} has no meta"
+            assert meta["direction"] in (MetricDirection.MINIMIZE, MetricDirection.MAXIMIZE)
+
+    def test_builtin_metric_directions(self):
+        for name in ("rmse", "mse", "mae", "mape", "logloss"):
+            assert registry.metric.get_meta(name)["direction"] == MetricDirection.MINIMIZE
+        for name in ("accuracy", "f1", "f1_macro", "precision", "recall", "auc"):
+            assert registry.metric.get_meta(name)["direction"] == MetricDirection.MAXIMIZE
+
+    def test_custom_metric_with_direction(self):
+        @registry.metric("test_dir_metric", direction="minimize")
+        def _fn(y_true, y_pred):
+            return 0.0
+
+        try:
+            meta = registry.metric.get_meta("test_dir_metric")
+            assert meta is not None
+            assert meta["direction"] == MetricDirection.MINIMIZE
+            # get() still returns (fn, kwargs) only
+            fn, kwargs = registry.metric.get("test_dir_metric")
+            assert fn is _fn
+            assert kwargs == {}
+        finally:
+            registry.metric._metrics.pop("test_dir_metric", None)
+
+    def test_custom_metric_invalid_direction_raises(self):
+        with pytest.raises(ValueError, match="valid MetricDirection"):
+            registry.metric("bad_dir_metric", direction="sideways")(lambda y_true, y_pred: 0.0)
 
     def test_default_metrics_are_known(self):
         known = set(registry.metric.metric_names)
