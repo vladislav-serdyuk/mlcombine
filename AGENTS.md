@@ -25,6 +25,10 @@ Dev-зависимости (catboost, torch, pyarrow, pre-commit, pytest, ruff, 
 Хук mypy обязан быть `local` с `entry: .venv/bin/python -m mypy --strict src` — изолированный env
 pre-commit не видит зависимостей проекта.
 
+## Коммиты
+Все коммиты — **conventional commits**: `type(scope): description` (feat/fix/refactor/docs/test/chore/build/ci/perf).
+Примеры: `fix(steps): ignore stale encoders in predict mode`, `feat(registry): add MetricDirection`. Без BREAKING CHANGE без согласования.
+
 ## Docker
 `Dockerfile.test` — по гайду uv:
 - `COPY --from=ghcr.io/astral-sh/uv:0.11.29 /uv /uvx /bin/` (версию uv поднимать вручную)
