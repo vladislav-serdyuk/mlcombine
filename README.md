@@ -20,11 +20,6 @@
 Declarative Low-Code/No-Code framework for ML competitions.
 Just write a YAML config — the framework handles the rest.
 
-```bash
-pip install mlcombine
-mlcombine train --config config.yaml
-```
-
 ## Quick Start
 
 With `uv` (recommended):
