@@ -25,7 +25,7 @@ Just write a YAML config — the framework handles the rest.
 With `uv` (recommended):
 
 ```bash
-git clone https://github.com/your-org/mlcombine.git
+git clone https://github.com/vladislav-serdyuk/mlcombine.git
 cd mlcombine
 uv sync --group dev
 ```
@@ -33,7 +33,7 @@ uv sync --group dev
 With `pip`:
 
 ```bash
-git clone https://github.com/your-org/mlcombine.git
+git clone https://github.com/vladislav-serdyuk/mlcombine.git
 cd mlcombine
 pip install -e ".[dev]"
 ```
